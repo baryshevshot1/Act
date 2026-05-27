@@ -52,9 +52,17 @@
 - `.claude/skills/deploy-check/SKILL.md` — pre-deploy checklist (5 compliance gates + 10 technical gates + OWASP map) (232 строки).
 - `docs/iterations/iteration-6-applied.md` — worklog per skill DoD.
 
-### TODO (Iteration 7+)
+### Added (Iteration 7 — Per-context CLAUDE.md bootstrap)
 
-- 5 per-context CLAUDE.md (events, rsvp, contacts_sharing, recommendations, localization) — Iteration 7 (~2h).
+- `backend/apps/events/CLAUDE.md` — Events + Recurrence Engine context (RFC 5545 patterns, generation horizon 21 days, owner-only writes) (73 строки).
+- `backend/apps/rsvp/CLAUDE.md` — RSVP & Attendance context (guest-merge invariants, capacity/waitlist, encrypted PII lookup) (95 строк).
+- `backend/apps/contacts_sharing/CLAUDE.md` — Contacts Sharing context (bilateral consent invariant, encrypted channel_value, time-gating в service-layer) (114 строк).
+- `backend/apps/recommendations/CLAUDE.md` — Recommendations context (stable API contract для ML migration, NO multiplicative ranking) (111 строк).
+- `backend/apps/localization/CLAUDE.md` — Localization context (three translation strategies, Russian four plurals, next-intl 4.x patterns) (107 строк).
+- `docs/iterations/iteration-7-applied.md` — worklog per CLAUDE.md DoD.
+
+### TODO (Iteration 8+)
+
 - `docs/erd.md` (Mermaid), `docs/api/openapi.yaml` (stub), `docs/AI-WORKFLOW.md`, `docs/glossary.md`, `docs/runbooks/*` (Iteration 8).
 - `SECURITY.md`, `.github/workflows/ci.yml`, `tests/conftest.py` — отложены до Phase 1 bootstrap.
 - 10 missing Level C (User Profile, Verification, Groups, Ratings, Discovery, Notifications, Moderation, Analytics, Admin Console) — пост-Pilot (Iteration 9).

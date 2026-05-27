@@ -27,7 +27,7 @@
 - ✅ Iteration 5 — Corrections to 4 main files (16 applied / 2 skipped / 3 verified).
 - ✅ Iteration 5.5 — Next-Steps Roadmap (planning-only: DAG / critical path / 7-day plan).
 - ✅ Iteration 6 — Skills library bootstrap (8 new SKILL.md → 10/10 total).
-- ⏳ Iteration 7 — Per-context CLAUDE.md bootstrap (5 BC с Level C, ~2h).
+- ✅ Iteration 7 — Per-context CLAUDE.md bootstrap (5 new → 6/6 total с identity_auth).
 - ⏳ Iteration 8 — Docs bootstrap (erd.md, openapi.yaml stub, glossary.md, runbooks/, ~4h).
 
 После Iteration 8 — Phase 1 Bootstrap (3-7 дней) → Pilot Этап 0 (5-7 дней) → ADR-007 gate → MVP-спринты W1-W10.
