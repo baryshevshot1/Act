@@ -1,3 +1,3 @@
 # Act — Django project package.
-# Структура создаётся в Phase 1 bootstrap через `django-admin startproject act backend/`.
-# См. ARCHITECTURE.md секция «Bootstrap: Phase 0 + Phase 1».
+# Layered settings live in `act.settings.{base,dev,prod,test}`.
+# Entry-point — `backend/manage.py` sets DJANGO_SETTINGS_MODULE to `act.settings.dev`.
