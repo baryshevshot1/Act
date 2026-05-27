@@ -1,0 +1,31 @@
+# Act — Backend Dockerfile for local dev
+# Используется docker-compose.yml profile "workers" для Procrastinate worker.
+# Production image — Phase 1+ (Coolify build на Yandex Compute, см. ADR-004).
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# System dependencies (минимум для Django + psycopg)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv (rust-based pip replacement) — официальный install method
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+
+# Copy dependency manifests first (cache layer)
+COPY pyproject.toml ./
+COPY .importlinter ./
+
+# Install dependencies in editable mode (TODO: Phase 1 — lock file)
+RUN uv pip install --system -e .[dev]
+
+# Copy source (всё из backend/ context)
+COPY . .
+
+# Default command (overridden in docker-compose)
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

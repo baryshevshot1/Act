@@ -1,0 +1,44 @@
+# Act — local development environment
+# Источник: CLAUDE.md строки 47-69 (стек) + PDF V1.3 секция 18.1 (Phase 1 bootstrap).
+# Production: Yandex Cloud Compute + Coolify (ADR-004).
+# NON-NEGOTIABLE #11: миграции через прямой PG, минуя PgBouncer.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: act-postgres
+    environment:
+      POSTGRES_DB: act_dev
+      POSTGRES_USER: act_app
+      POSTGRES_PASSWORD: act_app_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U act_app -d act_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  procrastinate-worker:
+    image: act-backend:dev
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DJANGO_SETTINGS_MODULE: act.settings.dev
+      DATABASE_URL: postgres://act_app:act_app_pass@postgres:5432/act_dev
+      PROCRASTINATE_DATABASE_URL: postgres://act_app:act_app_pass@postgres:5432/act_dev
+    command: python manage.py procrastinate worker
+    volumes:
+      - ./backend:/app
+    profiles:
+      - workers       # opt-in: docker-compose --profile workers up
+
+volumes:
+  postgres_data:

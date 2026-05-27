@@ -1,0 +1,360 @@
+[importlinter]
+root_packages =
+    apps
+include_external_packages = True
+
+# ====================================================================
+# CONTRACT 0: запрет raw SQL вне apps.core.rls.*
+# NON-NEGOTIABLE #11 [F: CLAUDE.md строки 52, 101, 141]; ADR-006.
+# .raw() / connection.cursor() — ТОЛЬКО в apps.core.rls.* модулях.
+# ====================================================================
+[importlinter:contract:no-raw-sql-outside-core-rls]
+name = .raw() / connection.cursor() запрещены вне apps.core.rls.*
+type = forbidden
+source_modules =
+    apps.identity_auth
+    apps.user_profile
+    apps.verification
+    apps.groups
+    apps.events
+    apps.recurrence_engine
+    apps.rsvp
+    apps.contacts_sharing
+    apps.ratings
+    apps.discovery
+    apps.recommendations
+    apps.notifications
+    apps.moderation
+    apps.localization
+    apps.analytics
+    apps.admin_console
+forbidden_modules =
+    django.db.backends.utils
+ignore_imports =
+    apps.core.rls.* -> django.db.backends.utils
+
+# ====================================================================
+# CONTRACT 1: identity_auth — root BC (никаких импортов из других BC)
+# ====================================================================
+[importlinter:contract:identity-auth-isolation]
+name = identity_auth не импортирует из других BC
+type = forbidden
+source_modules =
+    apps.identity_auth
+forbidden_modules =
+    apps.user_profile
+    apps.verification
+    apps.groups
+    apps.events
+    apps.recurrence_engine
+    apps.rsvp
+    apps.contacts_sharing
+    apps.ratings
+    apps.discovery
+    apps.recommendations
+    apps.notifications
+    apps.moderation
+    apps.localization
+    apps.analytics
+    apps.admin_console
+
+# ====================================================================
+# CONTRACT 2: user_profile depends only on identity_auth.contracts
+# ====================================================================
+[importlinter:contract:user-profile-via-contracts]
+name = user_profile использует только contracts других BC
+type = forbidden
+source_modules =
+    apps.user_profile
+forbidden_modules =
+    apps.identity_auth.models
+    apps.identity_auth.services
+    apps.verification.models
+    apps.verification.services
+ignore_imports =
+    apps.user_profile.* -> apps.identity_auth.contracts
+    apps.user_profile.* -> apps.verification.contracts
+
+# ====================================================================
+# CONTRACT 3: verification — только identity_auth.contracts
+# ====================================================================
+[importlinter:contract:verification-via-contracts]
+name = verification использует identity_auth только через contracts
+type = forbidden
+source_modules =
+    apps.verification
+forbidden_modules =
+    apps.identity_auth.models
+    apps.identity_auth.services
+ignore_imports =
+    apps.verification.* -> apps.identity_auth.contracts
+
+# ====================================================================
+# CONTRACT 4: groups — только identity_auth + user_profile contracts
+# ====================================================================
+[importlinter:contract:groups-via-contracts]
+name = groups использует identity_auth и user_profile только через contracts
+type = forbidden
+source_modules =
+    apps.groups
+forbidden_modules =
+    apps.identity_auth.models
+    apps.identity_auth.services
+    apps.user_profile.models
+    apps.user_profile.services
+ignore_imports =
+    apps.groups.* -> apps.identity_auth.contracts
+    apps.groups.* -> apps.user_profile.contracts
+
+# ====================================================================
+# CONTRACT 5: events — только identity_auth + groups contracts
+# ====================================================================
+[importlinter:contract:events-via-contracts]
+name = events использует identity_auth и groups только через contracts
+type = forbidden
+source_modules =
+    apps.events
+forbidden_modules =
+    apps.identity_auth.models
+    apps.identity_auth.services
+    apps.groups.models
+    apps.groups.services
+ignore_imports =
+    apps.events.* -> apps.identity_auth.contracts
+    apps.events.* -> apps.groups.contracts
+
+# ====================================================================
+# CONTRACT 6: recurrence_engine — только events + identity_auth contracts
+# ====================================================================
+[importlinter:contract:recurrence-via-contracts]
+name = recurrence_engine использует events только через contracts
+type = forbidden
+source_modules =
+    apps.recurrence_engine
+forbidden_modules =
+    apps.events.models
+    apps.events.services
+    apps.identity_auth.models
+    apps.identity_auth.services
+ignore_imports =
+    apps.recurrence_engine.* -> apps.events.contracts
+    apps.recurrence_engine.* -> apps.identity_auth.contracts
+
+# ====================================================================
+# CONTRACT 7: rsvp — только identity_auth + events contracts
+# ====================================================================
+[importlinter:contract:rsvp-via-contracts]
+name = rsvp использует identity_auth и events только через contracts
+type = forbidden
+source_modules =
+    apps.rsvp
+forbidden_modules =
+    apps.identity_auth.models
+    apps.identity_auth.services
+    apps.events.models
+    apps.events.services
+ignore_imports =
+    apps.rsvp.* -> apps.identity_auth.contracts
+    apps.rsvp.* -> apps.events.contracts
+
+# ====================================================================
+# CONTRACT 8: contacts_sharing — только identity_auth + rsvp contracts
+# ====================================================================
+[importlinter:contract:contacts-sharing-via-contracts]
+name = contacts_sharing использует identity_auth и rsvp только через contracts
+type = forbidden
+source_modules =
+    apps.contacts_sharing
+forbidden_modules =
+    apps.identity_auth.models
+    apps.identity_auth.services
+    apps.rsvp.models
+    apps.rsvp.services
+    apps.events.models
+    apps.events.services
+ignore_imports =
+    apps.contacts_sharing.* -> apps.identity_auth.contracts
+    apps.contacts_sharing.* -> apps.rsvp.contracts
+    apps.contacts_sharing.* -> apps.events.contracts
+
+# ====================================================================
+# CONTRACT 9: ratings — identity_auth + events + rsvp contracts
+# ====================================================================
+[importlinter:contract:ratings-via-contracts]
+name = ratings использует identity_auth + events + rsvp только через contracts
+type = forbidden
+source_modules =
+    apps.ratings
+forbidden_modules =
+    apps.identity_auth.models
+    apps.identity_auth.services
+    apps.events.models
+    apps.events.services
+    apps.rsvp.models
+    apps.rsvp.services
+ignore_imports =
+    apps.ratings.* -> apps.identity_auth.contracts
+    apps.ratings.* -> apps.events.contracts
+    apps.ratings.* -> apps.rsvp.contracts
+
+# ====================================================================
+# CONTRACT 10: discovery — read-only через contracts всех домена
+# ====================================================================
+[importlinter:contract:discovery-via-contracts]
+name = discovery — read-only слой, доступ к доменным BC только через contracts
+type = forbidden
+source_modules =
+    apps.discovery
+forbidden_modules =
+    apps.identity_auth.models
+    apps.identity_auth.services
+    apps.events.models
+    apps.events.services
+    apps.groups.models
+    apps.groups.services
+    apps.ratings.models
+    apps.ratings.services
+ignore_imports =
+    apps.discovery.* -> apps.identity_auth.contracts
+    apps.discovery.* -> apps.events.contracts
+    apps.discovery.* -> apps.groups.contracts
+    apps.discovery.* -> apps.ratings.contracts
+
+# ====================================================================
+# CONTRACT 11: recommendations — stable contract (ADR pattern)
+# MVP-stub делегирует в discovery; ML implementation замена без изменения сигнатуры.
+# ====================================================================
+[importlinter:contract:recommendations-via-contracts]
+name = recommendations — stable EventDTO contract, internals изолированы
+type = forbidden
+source_modules =
+    apps.recommendations
+forbidden_modules =
+    apps.identity_auth.models
+    apps.events.models
+    apps.discovery.models
+ignore_imports =
+    apps.recommendations.* -> apps.identity_auth.contracts
+    apps.recommendations.* -> apps.events.contracts
+    apps.recommendations.* -> apps.discovery.contracts
+
+# ====================================================================
+# CONTRACT 12: notifications — НЕТ прямых доменных импортов
+# Только через outbox subscribers (ADR-016) + contracts.
+# ====================================================================
+[importlinter:contract:notifications-via-outbox-only]
+name = notifications не имеет прямых доменных импортов (только через Outbox subscribers)
+type = forbidden
+source_modules =
+    apps.notifications
+forbidden_modules =
+    apps.identity_auth.models
+    apps.events.models
+    apps.rsvp.models
+    apps.groups.models
+    apps.ratings.models
+ignore_imports =
+    apps.notifications.* -> apps.identity_auth.contracts
+    apps.notifications.* -> apps.events.contracts
+    apps.notifications.* -> apps.rsvp.contracts
+
+# ====================================================================
+# CONTRACT 13: moderation — read-broadly, write через own models
+# ====================================================================
+[importlinter:contract:moderation-via-contracts]
+name = moderation использует домены через contracts (read-only для большинства)
+type = forbidden
+source_modules =
+    apps.moderation
+forbidden_modules =
+    apps.identity_auth.models
+    apps.identity_auth.services
+    apps.events.models
+    apps.events.services
+    apps.rsvp.models
+    apps.rsvp.services
+ignore_imports =
+    apps.moderation.* -> apps.identity_auth.contracts
+    apps.moderation.* -> apps.events.contracts
+    apps.moderation.* -> apps.rsvp.contracts
+
+# ====================================================================
+# CONTRACT 14: localization — справочник, изолирован от доменов
+# ====================================================================
+[importlinter:contract:localization-isolation]
+name = localization не импортирует доменные BC (он — provider, не consumer)
+type = forbidden
+source_modules =
+    apps.localization
+forbidden_modules =
+    apps.identity_auth
+    apps.events
+    apps.rsvp
+    apps.groups
+    apps.notifications
+
+# ====================================================================
+# CONTRACT 15: analytics — НЕТ прямых доменных импортов (только outbox)
+# ====================================================================
+[importlinter:contract:analytics-via-outbox-only]
+name = analytics не имеет прямых доменных импортов (только через Outbox subscribers)
+type = forbidden
+source_modules =
+    apps.analytics
+forbidden_modules =
+    apps.identity_auth.models
+    apps.events.models
+    apps.rsvp.models
+    apps.ratings.models
+ignore_imports =
+    apps.analytics.* -> apps.identity_auth.contracts
+    apps.analytics.* -> apps.events.contracts
+    apps.analytics.* -> apps.rsvp.contracts
+
+# ====================================================================
+# CONTRACT 16: admin_console — единственный BC с расширенным доступом
+# Использует act_admin (BYPASSRLS) role; все mutations логируются в audit_log_pii_access.
+# ====================================================================
+[importlinter:contract:admin-console-via-contracts]
+name = admin_console использует доменные contracts (НЕ прямые services/models)
+type = forbidden
+source_modules =
+    apps.admin_console
+forbidden_modules =
+    apps.identity_auth.models
+    apps.events.models
+    apps.rsvp.models
+    apps.groups.models
+    apps.moderation.models
+ignore_imports =
+    apps.admin_console.* -> apps.identity_auth.contracts
+    apps.admin_console.* -> apps.events.contracts
+    apps.admin_console.* -> apps.rsvp.contracts
+    apps.admin_console.* -> apps.groups.contracts
+    apps.admin_console.* -> apps.moderation.contracts
+
+# ====================================================================
+# CONTRACT 17 (cross-cutting): Cross-context side-effects ТОЛЬКО через outbox_event
+# ADR-016 — Transactional Outbox (NON-NEGOTIABLE для cross-context коммуникации).
+# Запрет публиковать «emitter → consumer.services» напрямую.
+# ====================================================================
+[importlinter:contract:cross-context-via-outbox]
+name = Cross-context side-effects ТОЛЬКО через outbox_event (ADR-016)
+type = forbidden
+source_modules =
+    apps.events
+    apps.rsvp
+    apps.ratings
+    apps.contacts_sharing
+forbidden_modules =
+    apps.notifications.services
+    apps.analytics.services
+    apps.discovery.services
+ignore_imports =
+    apps.events.* -> apps.notifications.contracts
+    apps.events.* -> apps.analytics.contracts
+    apps.events.* -> apps.discovery.contracts
+    apps.rsvp.* -> apps.notifications.contracts
+    apps.rsvp.* -> apps.analytics.contracts
+    apps.ratings.* -> apps.notifications.contracts
+    apps.contacts_sharing.* -> apps.notifications.contracts
