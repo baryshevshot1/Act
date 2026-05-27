@@ -1,12 +1,20 @@
 [importlinter]
 root_packages =
     apps
+    django
 include_external_packages = True
+# Note: per-contract `unmatched_ignore_imports_alerting = warn` добавлен в каждый
+# контракт с `ignore_imports`. Phase 1.4: 13 из 16 BC пустые (только __init__.py),
+# поэтому ignore_imports для contracts.* в этих BC формально без matches. После
+# наполнения каждого BC в W1+ — переключать обратно на default (error).
 
 # ====================================================================
 # CONTRACT 0: запрет raw SQL вне apps.core.rls.*
 # NON-NEGOTIABLE #11 [F: CLAUDE.md строки 52, 101, 141]; ADR-006.
 # .raw() / connection.cursor() — ТОЛЬКО в apps.core.rls.* модулях.
+# unmatched_ignore_imports_alerting = warn — apps.core.rls.* is defensive ignore;
+# apps.core не в source_modules, поэтому ignore структурно never triggers,
+# но сохраняем как safety net для будущей миграции apps.core в source.
 # ====================================================================
 [importlinter:contract:no-raw-sql-outside-core-rls]
 name = .raw() / connection.cursor() запрещены вне apps.core.rls.*
@@ -32,10 +40,17 @@ forbidden_modules =
     django.db.backends.utils
 ignore_imports =
     apps.core.rls.* -> django.db.backends.utils
+# allow_indirect_imports = True — иначе любая модель ловится через
+# django.db.models → django.db.backends.utils transitive chain.
+# Direct imports (from django.db.backends.utils import ...) — единственный
+# вектор raw SQL bypass'а; их и ловим.
+allow_indirect_imports = True
 
 # ====================================================================
 # CONTRACT 1: identity_auth — root BC (никаких импортов из других BC)
 # ====================================================================
+unmatched_ignore_imports_alerting = warn
+
 [importlinter:contract:identity-auth-isolation]
 name = identity_auth не импортирует из других BC
 type = forbidden
@@ -78,6 +93,8 @@ ignore_imports =
 # ====================================================================
 # CONTRACT 3: verification — только identity_auth.contracts
 # ====================================================================
+unmatched_ignore_imports_alerting = warn
+
 [importlinter:contract:verification-via-contracts]
 name = verification использует identity_auth только через contracts
 type = forbidden
@@ -92,6 +109,8 @@ ignore_imports =
 # ====================================================================
 # CONTRACT 4: groups — только identity_auth + user_profile contracts
 # ====================================================================
+unmatched_ignore_imports_alerting = warn
+
 [importlinter:contract:groups-via-contracts]
 name = groups использует identity_auth и user_profile только через contracts
 type = forbidden
@@ -109,6 +128,8 @@ ignore_imports =
 # ====================================================================
 # CONTRACT 5: events — только identity_auth + groups contracts
 # ====================================================================
+unmatched_ignore_imports_alerting = warn
+
 [importlinter:contract:events-via-contracts]
 name = events использует identity_auth и groups только через contracts
 type = forbidden
@@ -126,6 +147,8 @@ ignore_imports =
 # ====================================================================
 # CONTRACT 6: recurrence_engine — только events + identity_auth contracts
 # ====================================================================
+unmatched_ignore_imports_alerting = warn
+
 [importlinter:contract:recurrence-via-contracts]
 name = recurrence_engine использует events только через contracts
 type = forbidden
@@ -143,6 +166,8 @@ ignore_imports =
 # ====================================================================
 # CONTRACT 7: rsvp — только identity_auth + events contracts
 # ====================================================================
+unmatched_ignore_imports_alerting = warn
+
 [importlinter:contract:rsvp-via-contracts]
 name = rsvp использует identity_auth и events только через contracts
 type = forbidden
@@ -160,6 +185,8 @@ ignore_imports =
 # ====================================================================
 # CONTRACT 8: contacts_sharing — только identity_auth + rsvp contracts
 # ====================================================================
+unmatched_ignore_imports_alerting = warn
+
 [importlinter:contract:contacts-sharing-via-contracts]
 name = contacts_sharing использует identity_auth и rsvp только через contracts
 type = forbidden
@@ -180,6 +207,8 @@ ignore_imports =
 # ====================================================================
 # CONTRACT 9: ratings — identity_auth + events + rsvp contracts
 # ====================================================================
+unmatched_ignore_imports_alerting = warn
+
 [importlinter:contract:ratings-via-contracts]
 name = ratings использует identity_auth + events + rsvp только через contracts
 type = forbidden
@@ -200,6 +229,8 @@ ignore_imports =
 # ====================================================================
 # CONTRACT 10: discovery — read-only через contracts всех домена
 # ====================================================================
+unmatched_ignore_imports_alerting = warn
+
 [importlinter:contract:discovery-via-contracts]
 name = discovery — read-only слой, доступ к доменным BC только через contracts
 type = forbidden
@@ -224,6 +255,8 @@ ignore_imports =
 # CONTRACT 11: recommendations — stable contract (ADR pattern)
 # MVP-stub делегирует в discovery; ML implementation замена без изменения сигнатуры.
 # ====================================================================
+unmatched_ignore_imports_alerting = warn
+
 [importlinter:contract:recommendations-via-contracts]
 name = recommendations — stable EventDTO contract, internals изолированы
 type = forbidden
@@ -242,6 +275,8 @@ ignore_imports =
 # CONTRACT 12: notifications — НЕТ прямых доменных импортов
 # Только через outbox subscribers (ADR-016) + contracts.
 # ====================================================================
+unmatched_ignore_imports_alerting = warn
+
 [importlinter:contract:notifications-via-outbox-only]
 name = notifications не имеет прямых доменных импортов (только через Outbox subscribers)
 type = forbidden
@@ -261,6 +296,8 @@ ignore_imports =
 # ====================================================================
 # CONTRACT 13: moderation — read-broadly, write через own models
 # ====================================================================
+unmatched_ignore_imports_alerting = warn
+
 [importlinter:contract:moderation-via-contracts]
 name = moderation использует домены через contracts (read-only для большинства)
 type = forbidden
@@ -281,6 +318,8 @@ ignore_imports =
 # ====================================================================
 # CONTRACT 14: localization — справочник, изолирован от доменов
 # ====================================================================
+unmatched_ignore_imports_alerting = warn
+
 [importlinter:contract:localization-isolation]
 name = localization не импортирует доменные BC (он — provider, не consumer)
 type = forbidden
@@ -315,6 +354,8 @@ ignore_imports =
 # CONTRACT 16: admin_console — единственный BC с расширенным доступом
 # Использует act_admin (BYPASSRLS) role; все mutations логируются в audit_log_pii_access.
 # ====================================================================
+unmatched_ignore_imports_alerting = warn
+
 [importlinter:contract:admin-console-via-contracts]
 name = admin_console использует доменные contracts (НЕ прямые services/models)
 type = forbidden
@@ -338,6 +379,8 @@ ignore_imports =
 # ADR-016 — Transactional Outbox (NON-NEGOTIABLE для cross-context коммуникации).
 # Запрет публиковать «emitter → consumer.services» напрямую.
 # ====================================================================
+unmatched_ignore_imports_alerting = warn
+
 [importlinter:contract:cross-context-via-outbox]
 name = Cross-context side-effects ТОЛЬКО через outbox_event (ADR-016)
 type = forbidden
@@ -358,3 +401,5 @@ ignore_imports =
     apps.rsvp.* -> apps.analytics.contracts
     apps.ratings.* -> apps.notifications.contracts
     apps.contacts_sharing.* -> apps.notifications.contracts
+unmatched_ignore_imports_alerting = warn
+
