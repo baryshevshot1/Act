@@ -20,12 +20,13 @@
 
 ## Iteration roadmap
 
-- ✅ Iteration 0 (this) — Bootstrap repo (Phase 0 deliverable).
-- ✅ Iteration 1-3 — Pre-development research (audit + reconciliation, в Iteration 3 reconciliation report).
+- ✅ Iteration 0 — Bootstrap repo (Phase 0 deliverable).
+- ✅ Iteration 1-3 — Pre-development research (audit + reconciliation).
 - ✅ Iteration 4 — Scaffolding implementation (13 артефактов).
 - ✅ Iteration 4.5 — Audit + 5 fixes applied.
-- ⏳ Iteration 5 — Corrections to 4 main files (18 diff-corrections, ~90-120 мин).
-- ⏳ Iteration 6 — Skills library bootstrap (8 SKILL.md, ~3h).
+- ✅ Iteration 5 — Corrections to 4 main files (16 applied / 2 skipped / 3 verified).
+- ✅ Iteration 5.5 — Next-Steps Roadmap (planning-only: DAG / critical path / 7-day plan).
+- ✅ Iteration 6 — Skills library bootstrap (8 new SKILL.md → 10/10 total).
 - ⏳ Iteration 7 — Per-context CLAUDE.md bootstrap (5 BC с Level C, ~2h).
 - ⏳ Iteration 8 — Docs bootstrap (erd.md, openapi.yaml stub, glossary.md, runbooks/, ~4h).
 

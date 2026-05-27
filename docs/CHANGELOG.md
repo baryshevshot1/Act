@@ -36,15 +36,28 @@
 
 - `docs/iterations/iteration-5-applied.md` — worklog 21 items с verdict Applied/Skipped/Verified.
 
-### TODO (Iteration 6+)
+### Added (Iteration 5.5 — Next-Steps Roadmap)
 
-- 8 SKILL.md (recurrence-rrule, guest-rsvp-merge, auth-flow, add-translation, create-migration, add-bounded-context, write-adr, deploy-check) — Iteration 6 (~3h).
+- `docs/iterations/iteration-5.5-roadmap.md` — strategic planning документ: repository state snapshot, 8 open founder decisions, 25-step roadmap DAG, critical path с параллельным compliance треком, 7-day action plan, открытые вопросы за горизонтом, triggers пересмотра.
+
+### Added (Iteration 6 — Skills library bootstrap)
+
+- `.claude/skills/recurrence-rrule/SKILL.md` — RFC 5545 RRULE / EXDATE / RECURRENCE-ID для EventSeries (146 строк).
+- `.claude/skills/guest-rsvp-merge/SKILL.md` — `merge_guest_on_signup` pattern (PDF V1.3 sec 20.4, 162 строки).
+- `.claude/skills/auth-flow/SKILL.md` — Telegram OIDC + magic-link POST (NN #6) + 7 приоритетов аутентификации (169 строк).
+- `.claude/skills/add-translation/SKILL.md` — UI strings (messages/*.json) + JSONB expression indexes + Russian four plurals (191 строка).
+- `.claude/skills/create-migration/SKILL.md` — expand-contract + direct PG (NN #11) + запрещённые online ops (209 строк).
+- `.claude/skills/add-bounded-context/SKILL.md` — 17-й BC scaffolding (ADR-001 modular monolith + import-linter) (225 строк).
+- `.claude/skills/write-adr/SKILL.md` — MADR 4.0 template + status lifecycle + ADR-005↔007 renumbering warning (159 строк).
+- `.claude/skills/deploy-check/SKILL.md` — pre-deploy checklist (5 compliance gates + 10 technical gates + OWASP map) (232 строки).
+- `docs/iterations/iteration-6-applied.md` — worklog per skill DoD.
+
+### TODO (Iteration 7+)
+
 - 5 per-context CLAUDE.md (events, rsvp, contacts_sharing, recommendations, localization) — Iteration 7 (~2h).
-- Per-context CLAUDE.md для 5 BC с готовым Level C: events, rsvp, contacts_sharing, recommendations, localization (Iteration 7).
-- 8 SKILL.md (Iteration 6): recurrence-rrule, guest-rsvp-merge, auth-flow, add-translation, create-migration, add-bounded-context, write-adr, deploy-check.
 - `docs/erd.md` (Mermaid), `docs/api/openapi.yaml` (stub), `docs/AI-WORKFLOW.md`, `docs/glossary.md`, `docs/runbooks/*` (Iteration 8).
 - `SECURITY.md`, `.github/workflows/ci.yml`, `tests/conftest.py` — отложены до Phase 1 bootstrap.
-- 10 missing Level C (User Profile, Verification, Groups, Ratings, Discovery, Notifications, Moderation, Analytics, Admin Console) — пост-Pilot.
+- 10 missing Level C (User Profile, Verification, Groups, Ratings, Discovery, Notifications, Moderation, Analytics, Admin Console) — пост-Pilot (Iteration 9).
 
 -----
 
