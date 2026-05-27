@@ -36,15 +36,47 @@
 
 - `docs/iterations/iteration-5-applied.md` — worklog 21 items с verdict Applied/Skipped/Verified.
 
-### TODO (Iteration 6+)
+### Added (Iteration 5.5 — Next-Steps Roadmap)
 
-- 8 SKILL.md (recurrence-rrule, guest-rsvp-merge, auth-flow, add-translation, create-migration, add-bounded-context, write-adr, deploy-check) — Iteration 6 (~3h).
-- 5 per-context CLAUDE.md (events, rsvp, contacts_sharing, recommendations, localization) — Iteration 7 (~2h).
-- Per-context CLAUDE.md для 5 BC с готовым Level C: events, rsvp, contacts_sharing, recommendations, localization (Iteration 7).
-- 8 SKILL.md (Iteration 6): recurrence-rrule, guest-rsvp-merge, auth-flow, add-translation, create-migration, add-bounded-context, write-adr, deploy-check.
-- `docs/erd.md` (Mermaid), `docs/api/openapi.yaml` (stub), `docs/AI-WORKFLOW.md`, `docs/glossary.md`, `docs/runbooks/*` (Iteration 8).
-- `SECURITY.md`, `.github/workflows/ci.yml`, `tests/conftest.py` — отложены до Phase 1 bootstrap.
-- 10 missing Level C (User Profile, Verification, Groups, Ratings, Discovery, Notifications, Moderation, Analytics, Admin Console) — пост-Pilot.
+- `docs/iterations/iteration-5.5-roadmap.md` — strategic planning документ: repository state snapshot, 8 open founder decisions, 25-step roadmap DAG, critical path с параллельным compliance треком, 7-day action plan, открытые вопросы за горизонтом, triggers пересмотра.
+
+### Added (Iteration 6 — Skills library bootstrap)
+
+- `.claude/skills/recurrence-rrule/SKILL.md` — RFC 5545 RRULE / EXDATE / RECURRENCE-ID для EventSeries (146 строк).
+- `.claude/skills/guest-rsvp-merge/SKILL.md` — `merge_guest_on_signup` pattern (PDF V1.3 sec 20.4, 162 строки).
+- `.claude/skills/auth-flow/SKILL.md` — Telegram OIDC + magic-link POST (NN #6) + 7 приоритетов аутентификации (169 строк).
+- `.claude/skills/add-translation/SKILL.md` — UI strings (messages/*.json) + JSONB expression indexes + Russian four plurals (191 строка).
+- `.claude/skills/create-migration/SKILL.md` — expand-contract + direct PG (NN #11) + запрещённые online ops (209 строк).
+- `.claude/skills/add-bounded-context/SKILL.md` — 17-й BC scaffolding (ADR-001 modular monolith + import-linter) (225 строк).
+- `.claude/skills/write-adr/SKILL.md` — MADR 4.0 template + status lifecycle + ADR-005↔007 renumbering warning (159 строк).
+- `.claude/skills/deploy-check/SKILL.md` — pre-deploy checklist (5 compliance gates + 10 technical gates + OWASP map) (232 строки).
+- `docs/iterations/iteration-6-applied.md` — worklog per skill DoD.
+
+### Added (Iteration 7 — Per-context CLAUDE.md bootstrap)
+
+- `backend/apps/events/CLAUDE.md` — Events + Recurrence Engine context (RFC 5545 patterns, generation horizon 21 days, owner-only writes) (73 строки).
+- `backend/apps/rsvp/CLAUDE.md` — RSVP & Attendance context (guest-merge invariants, capacity/waitlist, encrypted PII lookup) (95 строк).
+- `backend/apps/contacts_sharing/CLAUDE.md` — Contacts Sharing context (bilateral consent invariant, encrypted channel_value, time-gating в service-layer) (114 строк).
+- `backend/apps/recommendations/CLAUDE.md` — Recommendations context (stable API contract для ML migration, NO multiplicative ranking) (111 строк).
+- `backend/apps/localization/CLAUDE.md` — Localization context (three translation strategies, Russian four plurals, next-intl 4.x patterns) (107 строк).
+- `docs/iterations/iteration-7-applied.md` — worklog per CLAUDE.md DoD.
+
+### Added (Iteration 8 — Docs bootstrap)
+
+- `docs/erd.md` — Mermaid ERD: BC dependency overview + per-BC detailed ERDs (identity_auth, events, rsvp, contacts_sharing, ratings, groups, outbox, audit, localization). 345 строк, 7 mermaid diagrams.
+- `docs/api/openapi.yaml` — OpenAPI 3.1 stub: 12 endpoints (/healthz, /api/v1/version, /api/v1/auth/{telegram-oidc,magic-link}/*, /api/v1/me, /api/v1/events*, /api/v1/events/{id}/rsvp{,/guest}); 6 schemas (UserDTO, EventDTO, ParticipantDTO, GuestRSVPDTO, ConsentInput, ErrorResponse); 4 response refs; bearer + CSRF + cookie security. 563 строки.
+- `docs/glossary.md` — 40+ терминов alphabetically (Domain · Architecture · Compliance · Metrics · Stack · Process categories). 178 строк.
+- `docs/AI-WORKFLOW.md` — 3-level CLAUDE.md иерархия + skills library + Boltzmann prompts/ pattern + guard rails (import-linter, RLS Operational Constraints, 11 NN); skill triggers cheatsheet. 213 строк.
+- `docs/runbooks/deploy.md` — Coolify deploy workflow: pre-deploy gates → staging → smoke → production → post-verify; migration zero-downtime; hotfix; Phase 1 pilot deploys. 176 строк.
+- `docs/runbooks/rollback.md` — when to rollback (trigger matrix P0/P1/P2); Coolify image rollback (UI + CLI); DB rollback (code-only vs migration reverse vs RLS leak P0); communication; incident reports. 132 строки.
+- `docs/runbooks/db-restore.md` — Yandex Managed PG backup (auto + manual snapshot + Selectel cross-region Plan B); 4 restore scenarios (PITR, full backup, Selectel sanctions-fallback, single-table); monthly drill mandatory; RTO/RPO targets. 209 строк.
+- `SECURITY.md` (root) — responsible disclosure email; severity tiers + response SLA; scope in/out; security posture (152-ФЗ + OWASP Top 10:2025 mapping); 20+ security controls table; hall of fame placeholder. 149 строк.
+- `docs/iterations/iteration-8-applied.md` — worklog per artifact DoD.
+
+### TODO (Iteration 9+)
+
+- `tests/conftest.py` + `.github/workflows/ci.yml` — отложены до Phase 1 bootstrap (Phase 1.2 GitHub branch protection + 1.6 import-linter в CI).
+- 10 missing Level C (User Profile, Verification, Groups, Ratings, Discovery, Notifications, Moderation, Analytics, Admin Console, Recurrence Engine standalone) — пост-Pilot (Iteration 9, ~3-4 недели parallel с MVP).
 
 -----
 

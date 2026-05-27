@@ -20,16 +20,18 @@
 
 ## Iteration roadmap
 
-- ✅ Iteration 0 (this) — Bootstrap repo (Phase 0 deliverable).
-- ✅ Iteration 1-3 — Pre-development research (audit + reconciliation, в Iteration 3 reconciliation report).
+- ✅ Iteration 0 — Bootstrap repo (Phase 0 deliverable).
+- ✅ Iteration 1-3 — Pre-development research (audit + reconciliation).
 - ✅ Iteration 4 — Scaffolding implementation (13 артефактов).
 - ✅ Iteration 4.5 — Audit + 5 fixes applied.
-- ⏳ Iteration 5 — Corrections to 4 main files (18 diff-corrections, ~90-120 мин).
-- ⏳ Iteration 6 — Skills library bootstrap (8 SKILL.md, ~3h).
-- ⏳ Iteration 7 — Per-context CLAUDE.md bootstrap (5 BC с Level C, ~2h).
-- ⏳ Iteration 8 — Docs bootstrap (erd.md, openapi.yaml stub, glossary.md, runbooks/, ~4h).
+- ✅ Iteration 5 — Corrections to 4 main files (16 applied / 2 skipped / 3 verified).
+- ✅ Iteration 5.5 — Next-Steps Roadmap (planning-only: DAG / critical path / 7-day plan).
+- ✅ Iteration 6 — Skills library bootstrap (8 new SKILL.md → 10/10 total).
+- ✅ Iteration 7 — Per-context CLAUDE.md bootstrap (5 new → 6/6 total с identity_auth).
+- ✅ Iteration 8 — Docs bootstrap (erd.md, openapi.yaml stub, glossary.md, runbooks/×3, AI-WORKFLOW.md, SECURITY.md root).
+- ⏳ Iteration 9 (planned, post-Pilot) — 10 missing Level C drafts.
 
-После Iteration 8 — Phase 1 Bootstrap (3-7 дней) → Pilot Этап 0 (5-7 дней) → ADR-007 gate → MVP-спринты W1-W10.
+После Iteration 8 — Phase 1 Bootstrap (3-7 дней) → Pilot Этап 0 (5-7 дней) → ADR-007 gate → MVP-спринты W1-W10 → Soft launch (50-100 тренеров вручную). Параллельный compliance трек: Pre-Phase 0.1+0.2 РКН (до 30 дней проверки).
 
 ## Anthropic Boltzmann pattern
 

@@ -1,0 +1,563 @@
+openapi: 3.1.0
+info:
+  title: Act API
+  description: |
+    REST API для Act — host-first платформы для поиска компании на совместные мероприятия.
+
+    **Stub-версия для Phase 1 Bootstrap.** Конкретные models / handlers создаются
+    в W1-W6 MVP. Schema стабилизируется после Pilot Этап 0 + ADR-007 stack commit.
+
+    Compliance: 152-ФЗ ст. 18 (data в РФ), ст. 9 (отдельный документ согласия),
+    ст. 12 (ТППД для Telegram).
+
+    Authentication: server-side sessions (cookie-based, SameSite=Strict, HttpOnly, Secure).
+  version: 0.1.0-stub
+  contact:
+    name: Founder / DPO
+    email: founder@act.app  # placeholder — заменить после Phase 0.5 domain регистрации
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:8000
+    description: Local dev (docker-compose up postgres + manage.py runserver)
+  - url: https://staging.act.app
+    description: Staging (Coolify on Yandex Cloud) — placeholder domain
+  - url: https://act.app
+    description: Production — placeholder domain (см. README.md TODO § domain)
+
+tags:
+  - name: auth
+    description: Identity & Auth (identity_auth BC) — Telegram OIDC, magic-link, OAuth, OTP
+  - name: events
+    description: Events context — CRUD, recurring series, OG cards
+  - name: rsvp
+    description: RSVP & Attendance — signed-in + guest RSVPs
+  - name: me
+    description: Current authenticated user
+  - name: meta
+    description: System endpoints (health, version)
+
+components:
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: actsessionid
+      description: |
+        Server-side session ID (256 bits CSPRNG). Set by /auth/* endpoints.
+        SameSite=Strict, HttpOnly, Secure (production).
+    CSRFToken:
+      type: apiKey
+      in: header
+      name: X-CSRFToken
+      description: |
+        Django CSRF token. Required for all POST/PATCH/DELETE.
+        Fetched via GET /api/v1/csrf or rendered in form.
+
+  schemas:
+    UserDTO:
+      type: object
+      required: [id, locale, country_code, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUIDv7
+        display_name:
+          type: string
+          nullable: true
+          maxLength: 64
+        locale:
+          type: string
+          pattern: ^[a-z]{2}-[A-Z]{2}$
+          example: ru-RU
+        country_code:
+          type: string
+          minLength: 2
+          maxLength: 2
+          example: RU
+        city_id:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum: [active, banned]
+        created_at:
+          type: string
+          format: date-time
+        # PII fields (phone, email, telegram_id) НЕ возвращаются в публичном DTO
+
+    EventDTO:
+      type: object
+      required: [id, title, starts_at, status, owner_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        series_id:
+          type: string
+          format: uuid
+          nullable: true
+        group_id:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+        city_id:
+          type: string
+          format: uuid
+        location_text:
+          type: string
+          nullable: true
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        capacity:
+          type: integer
+          nullable: true
+          minimum: 1
+        status:
+          type: string
+          enum: [draft, published, full, cancelled, completed]
+        is_paid:
+          type: boolean
+        price:
+          type: number
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+          example: RUB
+
+    ParticipantDTO:
+      type: object
+      required: [id, event_id, user_id, status, applied_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [applied, confirmed, waitlist, declined, checked_in, no_show]
+        applied_at:
+          type: string
+          format: date-time
+        confirmed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    GuestRSVPDTO:
+      type: object
+      required: [id, event_id, channel, display_name, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_id:
+          type: string
+          format: uuid
+        channel:
+          type: string
+          enum: [email, telegram_handle, phone]
+        value_masked:
+          type: string
+          description: Masked value, e.g. "***@example.com" or "+7XXX***45-67"
+        display_name:
+          type: string
+        status:
+          type: string
+
+    ConsentInput:
+      type: object
+      required: [core_processing]
+      properties:
+        core_processing:
+          type: boolean
+          description: 152-ФЗ ст. 9 ред. 156-ФЗ — отдельный документ согласия (NN #2)
+        cross_border_transfer:
+          type: boolean
+          description: ТППД для Telegram (NN #9, ADR-013) — обязательно для Telegram OIDC
+        cookies_analytics:
+          type: boolean
+          default: false
+        cookies_marketing:
+          type: boolean
+          default: false
+
+    ErrorResponse:
+      type: object
+      required: [error_code, message]
+      properties:
+        error_code:
+          type: string
+          example: CONSENT_REQUIRED
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+  responses:
+    Unauthorized:
+      description: Session не валидна
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: |
+        Auth прошла, но action не разрешён (RLS deny / not owner / banned user).
+        В случае RLS — возвращает 404 (избегаем enumeration leak).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ConsentRequired:
+      description: |
+        Требуется consent (например cross_border_transfer для Telegram).
+        Не путать с 401 (нет auth) или 403 (no permission).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RateLimited:
+      description: 3 magic-link / 15 мин / IP, см. NN #6
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+paths:
+  /healthz:
+    get:
+      tags: [meta]
+      summary: Liveness probe
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: ok
+
+  /api/v1/version:
+    get:
+      tags: [meta]
+      summary: API version + build info
+      security: []
+      responses:
+        '200':
+          description: Version info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  api_version: { type: string, example: 0.1.0 }
+                  build_sha: { type: string, example: 157ac74 }
+                  built_at: { type: string, format: date-time }
+
+  /api/v1/auth/telegram-oidc/start:
+    post:
+      tags: [auth]
+      summary: Initiate Telegram OIDC redirect
+      description: |
+        Returns redirect URL to Telegram OAuth. Requires consent input
+        (cross_border_transfer for Telegram per NN #9 / ADR-013).
+      security: [{ CSRFToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [consent, redirect_back]
+              properties:
+                consent:
+                  $ref: '#/components/schemas/ConsentInput'
+                redirect_back:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Redirect URL prepared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  redirect_url: { type: string, format: uri }
+        '400':
+          $ref: '#/components/responses/ConsentRequired'
+
+  /api/v1/auth/telegram-oidc/callback:
+    post:
+      tags: [auth]
+      summary: Telegram OIDC callback (signup or login)
+      description: |
+        Triggered after Telegram OAuth redirect-back. Verifies signature,
+        creates User if new, calls merge_guest_on_signup, sets session cookie.
+      security: [{ CSRFToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [telegram_oauth_data, consent]
+              properties:
+                telegram_oauth_data:
+                  type: object
+                consent:
+                  $ref: '#/components/schemas/ConsentInput'
+      responses:
+        '200':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '400':
+          $ref: '#/components/responses/ConsentRequired'
+
+  /api/v1/auth/magic-link/request:
+    post:
+      tags: [auth]
+      summary: Send magic link to email
+      description: |
+        Public endpoint, rate-limited (3/15min/IP, 10/hour/email per NN #6).
+        Sends through UniSender/SendPulse — NOT Telegram (NN #9).
+      security: [{ CSRFToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '202':
+          description: Magic link sent (always 202 to avoid enumeration leak)
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/v1/auth/magic-link/verify:
+    post:
+      tags: [auth]
+      summary: Verify magic link token (POST — not GET, per NN #6)
+      description: |
+        **NEVER login on GET.** Link-preview bots (Telegram WebpageBot, Microsoft SafeLinks)
+        burn tokens. GET /auth/verify?t=X должен рендерить form с кнопкой «Войти»;
+        actual login происходит на POST after explicit click.
+
+        Sources: supertokens.com/blog/magiclinks; etodd.io/2026/03/22/magic-link-pitfalls.
+      security: [{ CSRFToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+                  minLength: 32
+      responses:
+        '200':
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/logout:
+    post:
+      tags: [auth]
+      summary: Logout (destroys session)
+      security: [{ SessionCookie: [], CSRFToken: [] }]
+      responses:
+        '204':
+          description: Session destroyed
+
+  /api/v1/me:
+    get:
+      tags: [me]
+      summary: Get current authenticated user
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/events:
+    get:
+      tags: [events]
+      summary: List events (public catalog with optional filters)
+      parameters:
+        - in: query
+          name: city_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20, maximum: 100 }
+      security: []
+      responses:
+        '200':
+          description: Public events
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/EventDTO' }
+    post:
+      tags: [events]
+      summary: Create new Event (signed-in organizer)
+      security: [{ SessionCookie: [], CSRFToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, starts_at, city_id]
+              properties:
+                title: { type: string }
+                description: { type: string }
+                starts_at: { type: string, format: date-time }
+                ends_at: { type: string, format: date-time, nullable: true }
+                city_id: { type: string, format: uuid }
+                capacity: { type: integer, nullable: true }
+                series_id: { type: string, format: uuid, nullable: true }
+      responses:
+        '201':
+          description: Event created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventDTO' }
+
+  /api/v1/events/{event_id}:
+    parameters:
+      - in: path
+        name: event_id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [events]
+      summary: Event details (public)
+      responses:
+        '200':
+          description: Event
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventDTO' }
+        '404':
+          description: Not found (RLS may return this instead of 403)
+    patch:
+      tags: [events]
+      summary: Update Event (owner only)
+      security: [{ SessionCookie: [], CSRFToken: [] }]
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventDTO' }
+
+  /api/v1/events/{event_id}/rsvp:
+    parameters:
+      - in: path
+        name: event_id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [rsvp]
+      summary: RSVP as authenticated user (per-event, not series-wide)
+      description: |
+        Per-instance RSVP — главный UX-differentiator vs Luma/Meetup (JTBD-2).
+        Each Event in a Series requires its own RSVP confirmation.
+      security: [{ SessionCookie: [], CSRFToken: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, nullable: true }
+      responses:
+        '201':
+          description: RSVP created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParticipantDTO' }
+        '409':
+          description: Capacity reached → waitlist OR duplicate RSVP
+
+  /api/v1/events/{event_id}/rsvp/guest:
+    parameters:
+      - in: path
+        name: event_id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [rsvp]
+      summary: RSVP as guest (no account) — V1.1 frictionless onboarding
+      description: |
+        Creates GuestRSVP with channel ∈ {email, telegram_handle, phone}.
+        If channel=email → pending until verify; if telegram_handle → immediate.
+        On future signup matching (channel, value_hash) → merge via merge_guest_on_signup.
+      security: [{ CSRFToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channel, value, display_name]
+              properties:
+                channel:
+                  type: string
+                  enum: [email, telegram_handle, phone]
+                value:
+                  type: string
+                display_name:
+                  type: string
+                  maxLength: 64
+      responses:
+        '201':
+          description: GuestRSVP created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GuestRSVPDTO' }
