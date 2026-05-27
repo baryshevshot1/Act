@@ -73,6 +73,20 @@
 - `SECURITY.md` (root) — responsible disclosure email; severity tiers + response SLA; scope in/out; security posture (152-ФЗ + OWASP Top 10:2025 mapping); 20+ security controls table; hall of fame placeholder. 149 строк.
 - `docs/iterations/iteration-8-applied.md` — worklog per artifact DoD.
 
+### Fixed (Architecture self-audit — pre-Phase 1, 2026-05-27)
+
+Pre-Phase 1 self-audit `docs/ARCHITECTURE.md` (2670 строк) + cross-doc consistency check. Найдено и исправлено 8 рассинхронизаций (1 affecting code, 2 outdated meta, 5 cosmetic cross-refs):
+
+- **M1** `docs/ARCHITECTURE.md:870` — `ConsentRecord` schema purposes расширен с 3 (`core_processing`, `marketing`, `contact_sharing`) до 7 в соответствии с `CLAUDE.md` глоссарием + `apps/identity_auth/CLAUDE.md` + `docs/erd.md` (добавлены `cross_border_transfer`, `cookies_essential`, `cookies_analytics`, `cookies_marketing`). **Affects code** — Phase 1.4 Django skeleton генерит `ConsentRecord` model по этому DDL.
+- **M2** `docs/ARCHITECTURE.md:3` (header summary) — «13 ADR-решений» → «16 ADR-решений» (line 8 уже правильно фиксирует 001–016).
+- **M3** `docs/ARCHITECTURE.md:1863` — «Текущие skills (Iteration 4): write-rls-policy + outbox-event; оставшиеся 8 SKILL.md планируются в Iteration 6» → актуальное «10/10 после Iteration 6» с перечислением всех skills и ссылкой на `docs/AI-WORKFLOW.md`.
+- **m4** `docs/ARCHITECTURE.md:2287` — broken cross-ref «§ 16 BC ↔ Level C status в iteration-4.5-audit-report.md» (раздела нет) → ссылка на `iteration-5.5-roadmap.md` step 24.
+- **m5** `docs/ARCHITECTURE.md:570` — «Phase 4 в roadmap» (Phase 4 нигде не определена) → «Iteration 9 в `docs/iterations/iteration-5.5-roadmap.md` step 24».
+- **m6** `docs/ARCHITECTURE.md:1969` — typo `cross_border_consent` → `cross_border_transfer` (актуальное имя purpose).
+- **m7** `docs/ARCHITECTURE.md:2543-2545` — § Источники → Iteration 1-5 reconciliation расширен записями Iter 5.5/6/7/8 + audit note.
+- **m8** `docs/erd.md:339` — «10 missing BCs» перечисление расширено с 8 до 10 (добавлены `user_profile` + `recurrence_engine standalone`).
+- **m9** `CLAUDE.md:25` + `README.md:37` — два дополнительных упоминания «13 ADR» в навигационных артефактах (структурное дерево + таблица документации) → «16 ADR»; README.md уточнён размер ARCHITECTURE.md с «~1900 строк» до «~2700 строк» (фактический wc -l = 2680).
+
 ### TODO (Iteration 9+)
 
 - `tests/conftest.py` + `.github/workflows/ci.yml` — отложены до Phase 1 bootstrap (Phase 1.2 GitHub branch protection + 1.6 import-linter в CI).

@@ -336,7 +336,7 @@ erDiagram
 - **Cardinality notation**: `||--o{` = 1:N, `||--||` = 1:1, `||--o|` = 1:0..1, `}o--||` = N:1.
 - **Type hints**: ORM-mapped types (uuid, varchar, jsonb, timestamptz, inet); фактические Django field types — в `apps/<ctx>/models.py` (Phase 1).
 - **Encryption notes**: `encrypted` columns используют `django-cryptography` + Yandex Lockbox (ADR-014). Lookup через `_hash` HMAC columns.
-- **10 missing BCs** (verification details, groups full schema, ratings windows, discovery indexes, notifications FSM, moderation, analytics, admin_console) — Level C добавится в Iteration 9 (post-Pilot); ERD расширится.
+- **10 missing BCs** (user_profile, verification details, groups full schema, ratings windows, discovery indexes, notifications FSM, moderation, analytics, admin_console, recurrence_engine standalone — если будет решение разделить с events post-Pilot) — Level C добавится в Iteration 9; ERD расширится.
 
 ## Cross-refs
 
