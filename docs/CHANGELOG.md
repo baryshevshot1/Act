@@ -6,6 +6,40 @@
 
 ## [Unreleased]
 
+### Added (Phase 1.4 — Django skeleton)
+
+Первая итерация **реального кода** в репозитории. Skeleton с 3 BC (identity_auth / events / rsvp) + apps.core (RLS middleware, CSP middleware, outbox stub).
+
+- `backend/manage.py` + `backend/act/{wsgi,asgi,urls}.py` — Django CLI entry-points.
+- `backend/act/settings/{base,dev,test,prod}.py` — layered settings.
+    - Prod fail-fast при отсутствии `DATABASE_URL`, `DATABASE_URL_ADMIN` (act_admin BYPASSRLS — RLS Operational Constraint #4), `DATABASE_URL_DIRECT` (миграции минуя PgBouncer — NN #11), `PII_HMAC_SECRET`.
+    - 16 BC apps + django-allauth + corsheaders + drf-spectacular в `INSTALLED_APPS`; middleware order зафиксирован (Auth → RLS → CSP).
+    - `AUTH_USER_MODEL = 'identity_auth.User'`; Argon2id default hasher; secure cookies в base (overridden dev).
+- `backend/apps/core/rls/middleware.py` — `RLSContextMiddleware` (`set_config('app.current_user_id', user_id, true)` внутри `transaction.atomic()`); no-op на не-PG backends; PgBouncer-safe.
+- `backend/apps/core/middleware/csp.py` — hand-rolled CSP middleware (django-csp не в pyproject).
+- `backend/apps/core/outbox/{models,services}.py` — `OutboxEvent` модель + `publish_event()` service (ADR-016).
+- `backend/apps/core/views.py` — `healthz` (200 OK, без DB check; heavy readiness — W10).
+- `backend/apps/identity_auth/{models,services,contracts,admin,apps}.py` — 7 entities (User, Session, MagicLinkToken, OAuthProvider, OAuthIdentity, PasskeyCredential placeholder, ConsentRecord, AuthEvent); все user-attributed таблицы готовы под RLS policies (FORCE + default_deny — Phase 1.4.bis migration).
+- `backend/apps/events/{models,services,contracts,admin,apps}.py` — Event + EventSeries + EXDate + RecurrenceOverride + EventCoverImage (RFC 5545 verbatim).
+- `backend/apps/rsvp/{models,services,contracts,admin,apps}.py` — EventParticipant + GuestRSVP + WaitlistEntry.
+- All `services.py` methods — signatures с `raise NotImplementedError("W{N} sprint")`. Реальная реализация — в MVP-спринтах W1 (auth), W3 (events), W5 (recurrence), W6 (RSVP).
+- `.gitignore` обновлён: `/.venv`, `backend/dev.sqlite3`, `backend/.import_linter_cache/`.
+
+### Changed (Phase 1.4 — import-linter contracts pragmatics)
+
+- `backend/.importlinter`:
+    - `django` добавлен в `root_packages` — иначе `django.db.backends.utils` в `forbidden_modules` invalid для внешнего пакета.
+    - CONTRACT 0 получил `allow_indirect_imports = True` — без этого любая модель ловится transitive chain `django.db.models → django.db.backends.utils`; реальный bypass-вектор (raw SQL) — только прямой import.
+    - 16 контрактов с `ignore_imports` получили per-contract `unmatched_ignore_imports_alerting = warn` — Phase 1.4 имеет 13 пустых BC, для которых ignore_imports формально без matches. После наполнения BC в W1+ — переключить обратно на default 'error'.
+
+### TODO (Phase 1.4.bis — PG extensions migration)
+
+- `backend/apps/core/migrations/0001_extensions.py` — `pgcrypto`, `btree_gist`, `pg_trgm`, `unaccent`, `pg_uuidv7` через прямой PG (NN #11).
+- `backend/apps/<ctx>/migrations/0001_initial.py` — после extensions, через `PG_BOUNCER_HOST=""`.
+- RLS policies (FORCE + RESTRICTIVE `default_deny` + PERMISSIVE per-table) — через skill `write-rls-policy` в RunSQL миграциях.
+- `infra/postgres/init.sql` обновить — добавить `app.current_user_id` GUC setup для RLS.
+- Реальный Telegram OIDC adapter (~100 строк, W1 spirit) — НЕ Phase 1.4 scope.
+
 ### Added (Iteration 4 — scaffolding implementation)
 
 - `docs/CHANGELOG.md` — этот файл; закрывает Iteration 3 reference risk (ADR-005↔007 renumber).
