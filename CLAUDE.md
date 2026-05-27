@@ -22,7 +22,7 @@ act/
 ├── CLAUDE.md                    # этот файл — root AI-контекст
 ├── docs/
 │   ├── PRODUCT.md               # стратегия, JTBD, V1.1 UX
-│   └── ARCHITECTURE.md          # 16 контекстов, Level C, 13 ADR, Bootstrap
+│   └── ARCHITECTURE.md          # 16 контекстов, Level C, 16 ADR, Bootstrap
 ├── prompts/                     # переиспользуемые промты для Claude Code
 ├── backend/                     # Django 5.2 (создаётся в Phase 1)
 │   ├── apps/
