@@ -23,7 +23,7 @@ CREATE TABLE contacts_sharing_channel (
     user_id UUID NOT NULL REFERENCES identity_auth_user(id) ON DELETE CASCADE,
     channel_type VARCHAR(32) NOT NULL,
     -- 'telegram_handle' | 'phone' | 'email' | 'instagram' | 'custom_url'
-    channel_value TEXT NOT NULL,        -- ENCRYPT_AT_REST (django-cryptography)
+    channel_value TEXT NOT NULL,        -- ENCRYPT_AT_REST (apps.core.crypto.EncryptedField)
     channel_value_hash VARCHAR(64) NOT NULL,  -- HMAC-SHA256(PII_HMAC_SECRET, value)
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     UNIQUE (user_id, channel_type, channel_value_hash)
@@ -48,7 +48,7 @@ CREATE TABLE contacts_sharing_share (
 
 - **Bilateral invariant** — `to_user_id` видит `channel_value` **только если** есть взаимный grant (`from = to_user_id`, `to = from_user_id`, same `event_id`, оба `revoked_at IS NULL`). Enforced на RLS-уровне (recipient policy).
 - **Time-gating** — RLS подтверждает «грант существует и доступен взаимной стороне». Гейтинг по времени (показывать `channel_value` только в день Event / после `starts_at`) реализуется в **service-layer `resolve_shared_channel`**, не в RLS. Это разделение упрощает RLS expressions.
-- **PII encryption (ADR-014)** — `channel_value` шифруется через `django-cryptography` + Yandex Lockbox. НЕ через `pgcrypto` (ADR-014 reject reason: key в plain в БД).
+- **PII encryption (ADR-014 revised)** — `channel_value` шифруется через `apps.core.crypto.EncryptedField` (PyCA Fernet + MultiFernet keyring) + Yandex Lockbox master key. НЕ через `pgcrypto` (ADR-014 reject reason: key в plain в БД).
 - **Exact-match lookup** — через `channel_value_hash` HMAC; нельзя `.filter(channel_value=)` напрямую.
 - **Consent reference** — каждый `ContactShare` ссылается на `identity_auth_consent` row с `purpose='contact_sharing'` (NN #2 ст. 9 ред. 156-ФЗ).
 - **UUIDv7 PKs** — share grants — write-heavy (каждый event triggers многих shares).

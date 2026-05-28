@@ -41,3 +41,7 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 # Cookies без secure-флага для http://testserver.
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
+
+# Deterministic Fernet key для tests (round-trip property tests).
+# Не сматчит prod (что и хорошо — production data не дешифруется test-ключом).
+PII_ENCRYPTION_KEY = "9_QrGm0_FaTSwbKQ_PXowzL6dHpQzwLwBgGwc6PiL2A="

@@ -40,7 +40,7 @@ def merge_guest_on_signup(*, user_id: UUID, contact_channel: str, contact_value:
 
 - **Per-instance RSVP** — каждый Event в Series требует **отдельного** `EventParticipant` подтверждения. Никаких «auto-confirm всей series». Это главный UX-differentiator (PDF V1.1).
 - **Guest channel verification** — `GuestRSVP(channel='email')` стартует в `pending` пока user не verify через magic-link (skill `auth-flow`). `channel='telegram_handle'` immediately `going` (Telegram сам подтверждает handle).
-- **Encrypted PII lookup** — `GuestRSVP.value` шифруется через django-cryptography (ADR-014); exact-match через `value_hash` HMAC-SHA256(`PII_HMAC_SECRET`, normalized_value). Phone — normalize до `+E164` ДО hash.
+- **Encrypted PII lookup** — `GuestRSVP.value` шифруется через `apps.core.crypto.EncryptedField` (ADR-014 revised — PyCA Fernet); exact-match через `value_hash` HMAC-SHA256(`PII_HMAC_SECRET`, normalized_value). Phone — normalize до `+E164` ДО hash.
 - **UNIQUE constraint** — `(event_id, channel, value_hash)` для guest; `(event_id, user_id)` для participant.
 - **Merge invariant (PDF V1.3 sec 20.4)** — `merge_guest_on_signup` ТОЛЬКО после verify контакт-канала. Без verify = impersonation risk.
 - **Idempotent merge** — `EventParticipant.objects.get_or_create()` + повторный вызов возвращает 0 merged.

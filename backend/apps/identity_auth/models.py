@@ -2,7 +2,7 @@
 
 [F: backend/apps/identity_auth/CLAUDE.md «Entities» — 7 моделей]
 [F: docs/ARCHITECTURE.md «Identity & Auth» строки 858-961]
-[F: ADR-014 — PII encryption via django-cryptography + Yandex Lockbox]
+[F: ADR-014 — PII encryption via apps.core.crypto.EncryptedField (revised 2026-05-28)]
 
 7 моделей:
     User              — корневая, AUTH_USER_MODEL; email/phone encrypted + HMAC hash
@@ -26,6 +26,8 @@ import uuid
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+
+from apps.core.crypto import EncryptedField
 
 
 # ---------------------------------------------------------------------------
@@ -71,9 +73,9 @@ class UserManager(BaseUserManager["User"]):
 class User(AbstractBaseUser, PermissionsMixin):
     """Базовая identity сущность.
 
-    PII поля (email, phone) ХРАНЯТСЯ encrypted; exact-match lookup через
-    HMAC hash. На Phase 1.4 поля помечены как CharField; реальное шифрование
-    через django-cryptography подключается в W1 (требует ключа в Lockbox).
+    PII поля (email, phone) ХРАНЯТСЯ encrypted через apps.core.crypto.EncryptedField
+    (Fernet AES-128-CBC + HMAC-SHA256; key из Yandex Lockbox в prod). Exact-match
+    lookup — через отдельный HMAC `_hash` field.
     """
 
     id = models.UUIDField(
@@ -85,10 +87,10 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     # Email — encrypted at rest, exact-match via HMAC hash.
     # [F: identity_auth/CLAUDE.md «Conventions: Email / phone normalization ДО save»]
-    primary_email_encrypted = models.TextField(
+    primary_email_encrypted = EncryptedField(
         blank=True,
         default="",
-        help_text="ENCRYPT_AT_REST (django-cryptography в W1). НЕ filter — используй hash.",
+        help_text="ENCRYPT_AT_REST (apps.core.crypto.EncryptedField). НЕ filter — используй hash.",
     )
     primary_email_hash = models.CharField(
         max_length=64,
@@ -98,7 +100,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
 
     # Phone — same pattern. Nullable: signup may be Telegram-only без phone.
-    phone_e164_encrypted = models.TextField(blank=True, default="")
+    phone_e164_encrypted = EncryptedField(blank=True, default="")
     phone_e164_hash = models.CharField(
         max_length=64,
         null=True,
@@ -265,7 +267,7 @@ class OAuthIdentity(models.Model):
         "identity_auth.OAuthProvider",
         on_delete=models.PROTECT,
     )
-    provider_uid_encrypted = models.TextField()
+    provider_uid_encrypted = EncryptedField()
     provider_uid_hash = models.CharField(max_length=64, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

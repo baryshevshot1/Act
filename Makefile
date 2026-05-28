@@ -70,6 +70,7 @@ ci-check:
 		DATABASE_URL_ADMIN=postgres://act_admin:ci@localhost:5432/d \
 		DATABASE_URL_DIRECT=postgres://act_app:ci@localhost:5432/d \
 		PII_HMAC_SECRET=ci-only-replace-via-secrets \
+		PII_ENCRYPTION_KEY=9_QrGm0_FaTSwbKQ_PXowzL6dHpQzwLwBgGwc6PiL2A= \
 		SECRET_KEY=ci-only-replace-via-secrets-very-long-string-for-django-pass \
 		DJANGO_SETTINGS_MODULE=act.settings.prod \
 		python manage.py check --deploy
@@ -81,8 +82,8 @@ ci-check:
 	cd backend && DJANGO_SETTINGS_MODULE=act.settings.dev python manage.py \
 		makemigrations --dry-run core identity_auth events rsvp | tail -5
 	@echo ""
-	@echo "=== 7. pytest tests/ ==="
-	cd backend && DJANGO_SETTINGS_MODULE=act.settings.test pytest tests/ --no-cov -q
+	@echo "=== 7. pytest tests/ + apps/ ==="
+	cd backend && DJANGO_SETTINGS_MODULE=act.settings.test pytest tests/ apps/ --no-cov -q
 	@echo ""
 	@echo "✓ All CI checks PASS"
 

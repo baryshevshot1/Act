@@ -21,6 +21,8 @@ import uuid
 
 from django.db import models
 
+from apps.core.crypto import EncryptedField
+
 
 class RSVPStatus(models.TextChoices):
     APPLIED = "applied", "Applied (pending organizer review)"
@@ -104,7 +106,8 @@ class GuestRSVP(models.Model):
 
     [F: rsvp/CLAUDE.md «Conventions: Encrypted PII lookup»]
 
-    `contact_value_encrypted` — ENCRYPT_AT_REST (django-cryptography в W6).
+    `contact_value_encrypted` — ENCRYPT_AT_REST через apps.core.crypto.EncryptedField
+    (ADR-014 revised).
     `contact_value_hash` — HMAC-SHA256(PII_HMAC_SECRET, normalized_value)
     для exact lookup при merge.
 
@@ -119,7 +122,7 @@ class GuestRSVP(models.Model):
         related_name="guest_rsvps",
     )
     contact_channel = models.CharField(max_length=16, choices=ContactChannel.choices)
-    contact_value_encrypted = models.TextField(
+    contact_value_encrypted = EncryptedField(
         help_text="ENCRYPT_AT_REST. НЕ filter — используй hash.",
     )
     contact_value_hash = models.CharField(
