@@ -11,6 +11,7 @@ W3 sprint реализует:
 
 Phase 1.4 — только signatures для valid import-linter checks.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -35,7 +36,7 @@ def create_event(
     format_tags: list[str] | None = None,
     is_paid: bool = False,
     price_kopecks: int | None = None,
-) -> "EventDTO":
+) -> EventDTO:
     """Create draft Event (owner only).
 
     Outbox: НЕ emit'ит EventPublished для draft.
@@ -43,7 +44,7 @@ def create_event(
     raise NotImplementedError("W3 sprint — Events CRUD")
 
 
-def publish_event(*, event_id: UUID, owner_id: UUID) -> "EventDTO":
+def publish_event(*, event_id: UUID, owner_id: UUID) -> EventDTO:
     """FSM: draft → published. Emit EventPublished через outbox.
 
     Pre-conditions: event.owner_id == owner_id (RLS enforce); status == draft.
@@ -51,7 +52,7 @@ def publish_event(*, event_id: UUID, owner_id: UUID) -> "EventDTO":
     raise NotImplementedError("W3 sprint")
 
 
-def cancel_event(*, event_id: UUID, owner_id: UUID, reason: str) -> "EventDTO":
+def cancel_event(*, event_id: UUID, owner_id: UUID, reason: str) -> EventDTO:
     """FSM: published/full → cancelled.
 
     Outbox: EventCancelled → rsvp BC marks all participants 'declined' +
@@ -60,7 +61,7 @@ def cancel_event(*, event_id: UUID, owner_id: UUID, reason: str) -> "EventDTO":
     raise NotImplementedError("W3 sprint")
 
 
-def complete_event(*, event_id: UUID) -> "EventDTO":
+def complete_event(*, event_id: UUID) -> EventDTO:
     """FSM: published/full → completed (вызывается scheduled job по ends_at).
 
     Outbox: EventCompleted → ratings BC создаёт rating windows для участников.
@@ -78,7 +79,7 @@ def create_series(
     dtstart: datetime,
     template_event_data: dict[str, object],
     until: datetime | None = None,
-) -> "EventSeriesDTO":
+) -> EventSeriesDTO:
     """Create series; первый generation-batch создаётся отдельной task'ой."""
     raise NotImplementedError("W5 sprint — Series + Recurrence Engine")
 
@@ -103,7 +104,7 @@ def apply_override(
 # ---------------------------------------------------------------------------
 # Read-side (используется Discovery + RSVP + Notifications)
 # ---------------------------------------------------------------------------
-def get_event(*, event_id: UUID) -> "EventDTO | None":
+def get_event(*, event_id: UUID) -> EventDTO | None:
     raise NotImplementedError("W3 sprint")
 
 
@@ -115,7 +116,7 @@ def list_events_for_discovery(
     format_tags: list[str] | None = None,
     limit: int = 20,
     offset: int = 0,
-) -> list["EventDTO"]:
+) -> list[EventDTO]:
     """Discovery feed query.
 
     select_related / prefetch_related — ТОЛЬКО здесь (NN convention).

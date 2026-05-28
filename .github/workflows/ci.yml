@@ -1,17 +1,21 @@
 # Act — Continuous Integration
 #
-# Triggered on push to main + every PR. Runs backend verification suite
-# from Phase 1.4 promt verification commands (now enforced by CI):
+# Triggers: push в main + все PR.
+# Pinned combo: Python 3.12, Django 5.2.x, PostgreSQL 17 (frozen stack V1.2).
 #
-#   1. `manage.py check`               — Django system checks
-#   2. `manage.py check --deploy`      — prod settings hardening
-#   3. `lint-imports`                  — 18 modular monolith contracts
-#   4. `pytest --collect-only`         — import errors in test discovery
+# Steps:
+#   0. Verify stack versions (proof что running на target combo, не latest).
+#   1. ruff check + format --check (style + bugs).
+#   2. manage.py check (dev settings, system checks).
+#   3. manage.py check --deploy (prod settings smoke, hardening).
+#   4. import-linter (18 modular monolith contracts; CONTRACT 0 ловит raw SQL).
+#   5. makemigrations --dry-run (visibility — не fail'ит пока migrations не созданы; см. Phase 1.4.bis).
+#   6. pytest (3 smoke tests на реальном PG17).
 #
-# Не запускает миграции / runserver — для этого нужен живой PG, не сейчас.
-# Frontend job появится в Phase 1.5 (Next.js skeleton).
+# Не запускает: миграции (Phase 1.4.bis); frontend (Phase 1.5).
 #
-# [F: CLAUDE.md «Common commands»; docs/iterations/iteration-5.5-roadmap.md step #17]
+# [F: CLAUDE.md «Common commands»; docs/iterations/iteration-5.5-roadmap.md step #17;
+#  docs/research/phase-1-prep-findings-2026-05-28.md R4]
 
 name: CI
 
@@ -20,7 +24,6 @@ on:
   push:
     branches: [main]
 
-# Отменять running CI на тех же PR при новых push.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -30,21 +33,42 @@ permissions:
 
 jobs:
   backend:
-    name: Backend checks
+    name: Backend (Django 5.2 LTS + Python 3.12 + PG17)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: backend
+
+    services:
+      # PostgreSQL 17 — frozen stack V1.2.
+      # R4 finding: official Procrastinate CI тестирует только latest Django,
+      # НЕ 5.2 LTS — это наш CI обязан закрывать.
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: act_app
+          POSTGRES_PASSWORD: act_app_pass
+          POSTGRES_DB: act_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       DJANGO_SETTINGS_MODULE: act.settings.dev
       # SECRET_KEY для check --deploy не пуст (warnings, не errors).
       SECRET_KEY: ci-only-not-for-production-replace-via-secrets
-      # Минимум env для prod-settings smoke; не для runtime.
+      # Минимум env для prod-settings smoke.
       ALLOWED_HOSTS: ci.act.app
-      DATABASE_URL: postgres://act_app:ci_pass@localhost:5432/act_ci
-      DATABASE_URL_ADMIN: postgres://act_admin:ci_pass@localhost:5432/act_ci
-      DATABASE_URL_DIRECT: postgres://act_app:ci_pass@localhost:5432/act_ci
+      # Все три URL смотрят на service container — для prod-settings smoke хватает,
+      # для тестов используется DATABASE_URL_TEST (см. ниже).
+      DATABASE_URL: postgres://act_app:act_app_pass@localhost:5432/act_ci
+      DATABASE_URL_ADMIN: postgres://act_app:act_app_pass@localhost:5432/act_ci
+      DATABASE_URL_DIRECT: postgres://act_app:act_app_pass@localhost:5432/act_ci
       PII_HMAC_SECRET: ci-only-pii-hmac-secret-not-for-production
 
     steps:
@@ -55,8 +79,6 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
-          # Кеш привязан к содержимому pyproject.toml — при изменении зависимостей
-          # инвалидируется автоматически.
           cache-dependency-glob: "backend/pyproject.toml"
 
       - name: Set up Python 3.12
@@ -65,45 +87,76 @@ jobs:
       - name: Create venv + install dependencies
         run: |
           uv venv --python 3.12
-          # `--requirements pyproject.toml` ставит только deps из [project].dependencies
-          # + [tool.uv].dev-dependencies без attempt-инg построить act-package
-          # (act/ + apps/ — flat-layout, setuptools auto-discovery не работает).
+          # `--requirements pyproject.toml` ставит deps из [project].dependencies
+          # без attempt построить act-package (act/ + apps/ — flat-layout).
           uv pip install --requirements pyproject.toml
           # dev-dependencies для pytest/lint
-          uv pip install pytest pytest-django pytest-cov factory-boy ruff mypy
+          uv pip install pytest pytest-django pytest-cov factory-boy ruff
 
+      # ----- VERIFY STACK VERSIONS -----
+      # Доказательство что CI гоняется на target combo (R4 closure).
+      - name: Verify Python 3.12
+        run: uv run python --version | tee /dev/stderr | grep -E "^Python 3\.12\."
+
+      - name: Verify Django 5.2.x
+        run: |
+          uv run python -c "
+          import django
+          v = django.VERSION[:2]
+          assert v == (5, 2), f'Frozen stack ожидает Django 5.2 LTS, реально {django.__version__}'
+          print(f'Django: {django.__version__}')
+          "
+
+      - name: Verify PostgreSQL 17 service is ready
+        run: |
+          # postgres:17 service container — verify через psql client.
+          sudo apt-get install -y postgresql-client
+          PGPASSWORD=act_app_pass psql -h localhost -U act_app -d act_ci -c "SELECT version();" \
+            | tee /dev/stderr | grep -E "PostgreSQL 17"
+
+      # ----- LINT -----
+      - name: ruff check
+        run: uv run ruff check .
+
+      - name: ruff format --check
+        run: uv run ruff format --check .
+
+      # ----- DJANGO CHECKS -----
       - name: Django check (dev settings)
         run: uv run python manage.py check
 
-      - name: Django check --deploy (prod settings)
+      - name: Django check --deploy (prod settings smoke)
         env:
           DJANGO_SETTINGS_MODULE: act.settings.prod
         run: |
-          # prod check ловит missing env vars + insecure-by-default configs.
-          # Stderr может содержать WARN про YANDEX_LOCKBOX_KEY_ID (это ожидаемо —
-          # Lockbox setup в Phase 1.1, не сейчас). Errors — fail.
+          # Prod check ловит missing env vars + insecure-by-default.
+          # Stderr может содержать WARN про YANDEX_LOCKBOX_KEY_ID (Phase 1.1 task).
           uv run python manage.py check --deploy 2>&1
 
-      - name: import-linter (18 modular monolith contracts)
+      # ----- MODULAR MONOLITH BOUNDARY -----
+      - name: import-linter (18 contracts)
         run: uv run lint-imports
 
-      - name: pytest --collect-only (import errors only)
+      # ----- MIGRATIONS VISIBILITY -----
+      - name: makemigrations --dry-run (visibility, Phase 1.4.bis creates real ones)
+        run: |
+          # Models в apps/{core,identity_auth,events,rsvp}/ без миграций — это
+          # Phase 1.4 design choice (миграции создаются в 1.4.bis через прямой PG
+          # минуя PgBouncer, NN #11). --dry-run с explicit apps показывает в логах
+          # CI ровно что нужно будет создать. БЕЗ --check — не fail'ит pending state.
+          # После Phase 1.4.bis — заменить на `--dry-run --check` (fail если diff).
+          uv run python manage.py makemigrations --dry-run core identity_auth events rsvp
+
+      # ----- TESTS -----
+      - name: pytest (smoke tests на реальном PG17)
         env:
           DJANGO_SETTINGS_MODULE: act.settings.test
-        run: |
-          # Skeleton не имеет тестов — pytest exits 5 ("no tests collected"),
-          # это OK. Exit 1-4 = реальная ошибка collection (import / syntax).
-          # Exit 5 mapped to 0; всё остальное propagate.
-          set +e
-          uv run python -m pytest --collect-only --no-cov -q
-          STATUS=$?
-          if [ "$STATUS" -eq 0 ] || [ "$STATUS" -eq 5 ]; then
-            exit 0
-          fi
-          exit $STATUS
+          # PG-aware override (см. backend/act/settings/test.py).
+          DATABASE_URL_TEST: postgres://act_app:act_app_pass@localhost:5432/act_ci
+        run: uv run python -m pytest tests/ -v --no-cov
 
-  # Frontend job appears в Phase 1.5 (Next.js skeleton).
+  # Frontend job появится в Phase 1.5 (Next.js skeleton).
   # frontend:
-  #   name: Frontend checks
+  #   name: Frontend (Next.js 16 + next-intl 4.x)
   #   runs-on: ubuntu-latest
   #   ...

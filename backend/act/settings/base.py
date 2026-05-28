@@ -8,6 +8,7 @@ Layered pattern:
 Each child overrides DEBUG, DATABASES, ALLOWED_HOSTS, etc. но НЕ INSTALLED_APPS
 или MIDDLEWARE без чёткой причины.
 """
+
 from __future__ import annotations
 
 import os
@@ -33,11 +34,11 @@ ALLOWED_HOSTS: list[str] = []
 
 # CSRF / cookies — secure defaults (overridden in dev.py).
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = "Strict"          # [F: identity_auth/CLAUDE.md «Conventions»]
-SESSION_COOKIE_SECURE = True                # overridden False в dev.py
+SESSION_COOKIE_SAMESITE = "Strict"  # [F: identity_auth/CLAUDE.md «Conventions»]
+SESSION_COOKIE_SECURE = True  # overridden False в dev.py
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = "Strict"
-CSRF_COOKIE_SECURE = True                   # overridden False в dev.py
+CSRF_COOKIE_SECURE = True  # overridden False в dev.py
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
@@ -47,7 +48,7 @@ SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 # [F: identity_auth/CLAUDE.md «Password hashing: argon2id»]
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
-    "django.contrib.auth.hashers.PBKDF2PasswordHasher",       # fallback
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",  # fallback
 ]
 
 # ---------------------------------------------------------------------------
@@ -60,13 +61,13 @@ DJANGO_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django.contrib.postgres",     # ArrayField, JSONField, FTS — целевой backend PG 17
+    "django.contrib.postgres",  # ArrayField, JSONField, FTS — целевой backend PG 17
 ]
 
 THIRD_PARTY_APPS = [
     "allauth",
     "allauth.account",
-    "allauth.socialaccount",       # Telegram / VK ID / Yandex ID adapters — wired в W1
+    "allauth.socialaccount",  # Telegram / VK ID / Yandex ID adapters — wired в W1
     "corsheaders",
     "drf_spectacular",
 ]
@@ -156,6 +157,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "act.wsgi.application"
 ASGI_APPLICATION = "act.asgi.application"
 
+
 # ---------------------------------------------------------------------------
 # Database — overridden в dev.py / test.py / prod.py
 # Production использует ТРИ alias-а:
@@ -204,7 +206,7 @@ LANGUAGES = [
 ]
 TIME_ZONE = os.environ.get("TIME_ZONE", "Europe/Moscow")
 USE_I18N = True
-USE_TZ = True                                # TIMESTAMPTZ в БД, UTC внутри
+USE_TZ = True  # TIMESTAMPTZ в БД, UTC внутри
 LOCALE_PATHS = [BASE_DIR / "locale"]
 
 # ---------------------------------------------------------------------------
@@ -228,17 +230,13 @@ YANDEX_LOCKBOX_KEY_ID = os.environ.get("YANDEX_LOCKBOX_KEY_ID", "")
 # ---------------------------------------------------------------------------
 # Email — UniSender или SendPulse в prod; в dev — console backend.
 # ---------------------------------------------------------------------------
-EMAIL_BACKEND = os.environ.get(
-    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
-)
+EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@act.app")
 
 # ---------------------------------------------------------------------------
 # CORS — Next.js frontend локально на 3000.
 # ---------------------------------------------------------------------------
-CORS_ALLOWED_ORIGINS = os.environ.get(
-    "CORS_ALLOWED_ORIGINS", "http://localhost:3000"
-).split(",")
+CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 CORS_ALLOW_CREDENTIALS = True
 
 # ---------------------------------------------------------------------------

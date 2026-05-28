@@ -19,6 +19,7 @@ OAuthIdentity, PasskeyCredential, ConsentRecord, AuthEvent). FORCE + RESTRICTIVE
 default_deny — обязательно. SQL policies живут в Phase 1.4.bis миграции
 (см. .claude/skills/write-rls-policy/SKILL.md).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -46,7 +47,7 @@ class UserManager(BaseUserManager["User"]):
 
     use_in_migrations = True
 
-    def create_user(self, email: str, password: str | None = None, **extra: object) -> "User":
+    def create_user(self, email: str, password: str | None = None, **extra: object) -> User:
         if not email:
             raise ValueError("Email обязателен для регистрации.")
         normalized = self.normalize_email(email).lower()
@@ -60,7 +61,7 @@ class UserManager(BaseUserManager["User"]):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email: str, password: str, **extra: object) -> "User":
+    def create_superuser(self, email: str, password: str, **extra: object) -> User:
         extra.setdefault("is_staff", True)
         extra.setdefault("is_superuser", True)
         extra.setdefault("status", UserStatus.ACTIVE)
@@ -85,24 +86,34 @@ class User(AbstractBaseUser, PermissionsMixin):
     # Email — encrypted at rest, exact-match via HMAC hash.
     # [F: identity_auth/CLAUDE.md «Conventions: Email / phone normalization ДО save»]
     primary_email_encrypted = models.TextField(
-        blank=True, default="",
+        blank=True,
+        default="",
         help_text="ENCRYPT_AT_REST (django-cryptography в W1). НЕ filter — используй hash.",
     )
     primary_email_hash = models.CharField(
-        max_length=64, unique=True, db_index=True,
+        max_length=64,
+        unique=True,
+        db_index=True,
         help_text="HMAC-SHA256(PII_HMAC_SECRET, lowercase(email)) — для exact lookup.",
     )
 
     # Phone — same pattern. Nullable: signup may be Telegram-only без phone.
     phone_e164_encrypted = models.TextField(blank=True, default="")
     phone_e164_hash = models.CharField(
-        max_length=64, null=True, blank=True, db_index=True, unique=True,
+        max_length=64,
+        null=True,
+        blank=True,
+        db_index=True,
+        unique=True,
         help_text="HMAC-SHA256(PII_HMAC_SECRET, +E164 normalized phone).",
     )
 
     # Telegram — unique (если задано); plain — это публичный handle.
     telegram_id = models.CharField(
-        max_length=64, null=True, blank=True, unique=True,
+        max_length=64,
+        null=True,
+        blank=True,
+        unique=True,
         help_text="Telegram user_id (numeric); НЕ username (мог измениться).",
     )
 
@@ -113,7 +124,9 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     # Status FSM.
     status = models.CharField(
-        max_length=16, choices=UserStatus.choices, default=UserStatus.PENDING,
+        max_length=16,
+        choices=UserStatus.choices,
+        default=UserStatus.PENDING,
     )
 
     # Django admin / permissions framework — нужны для createsuperuser.
@@ -125,7 +138,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     objects = UserManager()
 
-    USERNAME_FIELD = "primary_email_hash"        # email_hash используется для login через allauth
+    USERNAME_FIELD = "primary_email_hash"  # email_hash используется для login через allauth
     REQUIRED_FIELDS: list[str] = []
 
     class Meta:
@@ -150,10 +163,14 @@ class Session(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
-        "identity_auth.User", on_delete=models.CASCADE, related_name="sessions",
+        "identity_auth.User",
+        on_delete=models.CASCADE,
+        related_name="sessions",
     )
     session_token_hash = models.CharField(
-        max_length=64, unique=True, db_index=True,
+        max_length=64,
+        unique=True,
+        db_index=True,
         help_text="HMAC-SHA256(secret, raw_token); raw — в cookie, hash — в БД.",
     )
     device_fingerprint = models.CharField(max_length=128, blank=True, default="")
@@ -184,14 +201,19 @@ class MagicLinkToken(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     token_hash = models.CharField(
-        max_length=64, unique=True, db_index=True,
+        max_length=64,
+        unique=True,
+        db_index=True,
         help_text="HMAC-SHA256(secret, raw_token). Raw — никогда в БД (NN #6).",
     )
     user = models.ForeignKey(
-        "identity_auth.User", on_delete=models.CASCADE, related_name="magic_links",
+        "identity_auth.User",
+        on_delete=models.CASCADE,
+        related_name="magic_links",
     )
     email_hash_target = models.CharField(
-        max_length=64, db_index=True,
+        max_length=64,
+        db_index=True,
         help_text="Защита от подмены user_id: при verify cравниваем с user.email_hash.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -235,10 +257,13 @@ class OAuthIdentity(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
-        "identity_auth.User", on_delete=models.CASCADE, related_name="oauth_identities",
+        "identity_auth.User",
+        on_delete=models.CASCADE,
+        related_name="oauth_identities",
     )
     provider = models.ForeignKey(
-        "identity_auth.OAuthProvider", on_delete=models.PROTECT,
+        "identity_auth.OAuthProvider",
+        on_delete=models.PROTECT,
     )
     provider_uid_encrypted = models.TextField()
     provider_uid_hash = models.CharField(max_length=64, db_index=True)
@@ -265,12 +290,15 @@ class PasskeyCredential(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
-        "identity_auth.User", on_delete=models.CASCADE, related_name="passkeys",
+        "identity_auth.User",
+        on_delete=models.CASCADE,
+        related_name="passkeys",
     )
     # Реальные WebAuthn поля (credential_id, public_key, sign_count, transports)
     # приходят с django-otp-webauthn — не дублируем здесь.
     placeholder_marker = models.CharField(
-        max_length=8, default="W1",
+        max_length=8,
+        default="W1",
         help_text="Удаляется при switch на django-otp-webauthn в W1.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -308,7 +336,9 @@ class ConsentRecord(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
-        "identity_auth.User", on_delete=models.CASCADE, related_name="consents",
+        "identity_auth.User",
+        on_delete=models.CASCADE,
+        related_name="consents",
     )
     purpose = models.CharField(max_length=32, choices=ConsentPurpose.choices)
     consent_text_hash = models.CharField(
@@ -355,14 +385,19 @@ class AuthEvent(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     actor_user = models.ForeignKey(
-        "identity_auth.User", null=True, blank=True,
-        on_delete=models.SET_NULL, related_name="auth_events",
+        "identity_auth.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="auth_events",
         help_text="NULL для anonymous events (failed login без существующего user).",
     )
     event_type = models.CharField(max_length=32, choices=AuthEventType.choices)
     metadata = models.JSONField(default=dict, blank=True)
     ip_address_hash = models.CharField(
-        max_length=64, blank=True, default="",
+        max_length=64,
+        blank=True,
+        default="",
         help_text="SHA-256(IP + daily salt) — не plain IP (минимизация).",
     )
     user_agent_hash = models.CharField(max_length=64, blank=True, default="")

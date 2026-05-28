@@ -6,6 +6,7 @@
 Заголовки накладываются на ВСЕ ответы, не зависят от транзакции/RLS.
 django-csp не в pyproject.toml — hand-roll, ~20 строк.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -35,10 +36,10 @@ class CSPMiddleware:
     Не используем `Report-Only` — pre-MVP трафик мал, можно сразу enforce.
     """
 
-    def __init__(self, get_response: Callable[["HttpRequest"], "HttpResponse"]) -> None:
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
         self.get_response = get_response
 
-    def __call__(self, request: "HttpRequest") -> "HttpResponse":
+    def __call__(self, request: HttpRequest) -> HttpResponse:
         response = self.get_response(request)
         response.setdefault("Content-Security-Policy", _DEFAULT_POLICY)
         return response

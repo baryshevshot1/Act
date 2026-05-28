@@ -14,6 +14,7 @@ RLS:
     GuestRSVP        — visible только organizer-у соответствующего event
     WaitlistEntry    — same pattern что EventParticipant
 """
+
 from __future__ import annotations
 
 import uuid
@@ -55,17 +56,19 @@ class EventParticipant(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     event = models.ForeignKey(
-        "events.Event",                       # string ref (NN cross-context)
+        "events.Event",  # string ref (NN cross-context)
         on_delete=models.CASCADE,
         related_name="participants",
     )
     user = models.ForeignKey(
-        "identity_auth.User",                  # string ref
+        "identity_auth.User",  # string ref
         on_delete=models.CASCADE,
         related_name="rsvps",
     )
     status = models.CharField(
-        max_length=16, choices=RSVPStatus.choices, default=RSVPStatus.APPLIED,
+        max_length=16,
+        choices=RSVPStatus.choices,
+        default=RSVPStatus.APPLIED,
     )
 
     # Note для organizer (опционально, ~280 chars).
@@ -111,31 +114,39 @@ class GuestRSVP(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     event = models.ForeignKey(
-        "events.Event", on_delete=models.CASCADE, related_name="guest_rsvps",
+        "events.Event",
+        on_delete=models.CASCADE,
+        related_name="guest_rsvps",
     )
     contact_channel = models.CharField(max_length=16, choices=ContactChannel.choices)
     contact_value_encrypted = models.TextField(
         help_text="ENCRYPT_AT_REST. НЕ filter — используй hash.",
     )
     contact_value_hash = models.CharField(
-        max_length=64, db_index=True,
+        max_length=64,
+        db_index=True,
         help_text="HMAC-SHA256(secret, normalized). Phone — +E164 ДО hash.",
     )
     display_name = models.CharField(max_length=128, blank=True, default="")
     status = models.CharField(
-        max_length=16, choices=GuestStatus.choices, default=GuestStatus.PENDING,
+        max_length=16,
+        choices=GuestStatus.choices,
+        default=GuestStatus.PENDING,
         help_text="'pending' для email до verify; 'going' immediate для telegram_handle.",
     )
 
     # Pointer на User после merge — для audit + idempotency повторных merge.
     merged_into_user_id = models.UUIDField(
-        null=True, blank=True, db_index=True,
+        null=True,
+        blank=True,
+        db_index=True,
         help_text="Set by merge_guest_on_signup; non-null → этот guest уже claimed.",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
     verified_at = models.DateTimeField(
-        null=True, blank=True,
+        null=True,
+        blank=True,
         help_text="Set при email verify (через magic-link).",
     )
 
@@ -172,16 +183,24 @@ class WaitlistEntry(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     event = models.ForeignKey(
-        "events.Event", on_delete=models.CASCADE, related_name="waitlist",
+        "events.Event",
+        on_delete=models.CASCADE,
+        related_name="waitlist",
     )
     user = models.ForeignKey(
-        "identity_auth.User", null=True, blank=True,
-        on_delete=models.CASCADE, related_name="waitlist_entries",
+        "identity_auth.User",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="waitlist_entries",
         help_text="NULL для guest waitlist (см. guest_rsvp_id).",
     )
     guest_rsvp = models.ForeignKey(
-        "rsvp.GuestRSVP", null=True, blank=True,
-        on_delete=models.CASCADE, related_name="waitlist_entries",
+        "rsvp.GuestRSVP",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="waitlist_entries",
     )
     position = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)

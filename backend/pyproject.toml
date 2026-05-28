@@ -27,8 +27,11 @@ dependencies = [
     "import-linter>=2.1",                     # Python-эквивалент Shopify Packwerk
 ]
 
-[tool.uv]
-dev-dependencies = [
+# PEP 735 dependency groups (uv >= 0.5 рекомендует) — replaces deprecated
+# [tool.uv].dev-dependencies (warning в CI).
+# Установка: `uv pip install --group dev` либо явный список в CI step.
+[dependency-groups]
+dev = [
     # Test stack [F: CLAUDE.md строка 69]
     "pytest>=8.3",
     "pytest-django>=4.9",
@@ -63,16 +66,24 @@ extend-select = [
     "RUF",              # ruff-specific
 ]
 ignore = [
-    "ANN101",           # missing-type-self (Django views — `self`)
-    "ANN102",           # missing-type-cls
     "S101",             # assert (used in tests)
+    # Project is intentionally written in Russian (docs/comments/docstrings).
+    # Cyrillic vs Latin ambiguity warnings — false positives by design.
+    "RUF001",           # ambiguous-unicode-character-string
+    "RUF002",           # ambiguous-unicode-character-docstring
+    "RUF003",           # ambiguous-unicode-character-comment
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "**/migrations/*.py" = ["E501", "RUF012", "N806"]    # generated code
 "**/tests/*.py" = ["S101", "ANN", "S106"]            # asserts + hardcoded passwords OK in tests
-"**/settings/*.py" = ["E501", "F403", "F405"]        # wildcard imports OK
 "**/conftest.py" = ["ANN", "S101"]
+"**/settings/*.py" = ["E501", "F403", "F405"]        # wildcard imports OK
+# Models: Django Meta indexes/constraints — list-as-class-attr — стандартный pattern,
+# не bug. DJ008 (missing __str__) — skeleton Phase 1.4; добавляется per BC в W1+.
+"**/models.py" = ["RUF012", "DJ008"]
+# Apps config: AppConfig.default_auto_field — class attribute list/string OK.
+"**/apps.py" = ["RUF012"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10

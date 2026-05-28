@@ -2,15 +2,16 @@
 
 [F: backend/apps/events/CLAUDE.md «Exposes»]
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 
-class EventStatusContract(str, Enum):
+class EventStatusContract(StrEnum):
     DRAFT = "draft"
     PUBLISHED = "published"
     FULL = "full"
@@ -28,7 +29,7 @@ class EventDTO:
     id: UUID
     owner_id: UUID
     series_id: UUID | None
-    title: dict[str, str]                # i18n {"ru": "...", "en": "..."}
+    title: dict[str, str]  # i18n {"ru": "...", "en": "..."}
     description: dict[str, str]
     country_code: str
     city_id: UUID | None
@@ -66,4 +67,4 @@ class EventCardDTO:
     starts_at: datetime
     city_id: UUID | None
     cover_storage_key: str | None
-    short_slug: str          # для /e/{slug} public route
+    short_slug: str  # для /e/{slug} public route

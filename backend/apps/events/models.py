@@ -15,6 +15,7 @@ RLS:
     public read для published. policy создаётся в Phase 1.4.bis миграции.
     EventCoverImage — public (без RLS).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -50,7 +51,7 @@ class EventSeries(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organizer_user = models.ForeignKey(
-        "identity_auth.User",                  # string reference — НЕ direct import (NN cross-context)
+        "identity_auth.User",  # string reference — НЕ direct import (NN cross-context)
         on_delete=models.CASCADE,
         related_name="organized_series",
     )
@@ -74,7 +75,8 @@ class EventSeries(models.Model):
     next_generation_at = models.DateTimeField(null=True, blank=True)
 
     status = models.CharField(
-        max_length=16, choices=EventSeriesStatus.choices,
+        max_length=16,
+        choices=EventSeriesStatus.choices,
         default=EventSeriesStatus.ACTIVE,
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -106,20 +108,24 @@ class Event(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
-        "identity_auth.User",                  # NN cross-context: string FK
+        "identity_auth.User",  # NN cross-context: string FK
         on_delete=models.CASCADE,
         related_name="owned_events",
     )
     series = models.ForeignKey(
-        "events.EventSeries", null=True, blank=True,
-        on_delete=models.SET_NULL, related_name="instances",
+        "events.EventSeries",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="instances",
         help_text="NULL для standalone Event; FK на series при generation.",
     )
     # Matching key для RecurrenceOverride: оригинальный DTSTART instance.
     # Отдельно от `starts_at` потому что override может менять starts_at,
     # но recurrence_id остаётся matching key.
     recurrence_id = models.DateTimeField(
-        null=True, blank=True,
+        null=True,
+        blank=True,
         help_text="Original DTSTART (RFC 5545 RECURRENCE-ID); matching key для overrides.",
     )
     group_id = models.UUIDField(null=True, blank=True)
@@ -142,11 +148,14 @@ class Event(models.Model):
 
     # Capacity / status.
     capacity = models.PositiveIntegerField(
-        null=True, blank=True,
+        null=True,
+        blank=True,
         help_text="NULL = unlimited; otherwise WaitlistEntry при overflow.",
     )
     status = models.CharField(
-        max_length=16, choices=EventStatus.choices, default=EventStatus.DRAFT,
+        max_length=16,
+        choices=EventStatus.choices,
+        default=EventStatus.DRAFT,
     )
 
     # Формат и теги. ArrayField требует PG — на dev SQLite используется как
@@ -154,7 +163,8 @@ class Event(models.Model):
     # путь — PG в docker-compose).
     format_tags = ArrayField(
         models.CharField(max_length=32),
-        default=list, blank=True,
+        default=list,
+        blank=True,
         help_text="['online', 'in_person', 'hybrid', 'series', 'paid', ...]",
     )
 
@@ -162,7 +172,8 @@ class Event(models.Model):
     moderation_required = models.BooleanField(default=False)
     is_paid = models.BooleanField(default=False)
     price_kopecks = models.BigIntegerField(
-        null=True, blank=True,
+        null=True,
+        blank=True,
         help_text="ЮKassa ИП-only path (NN #3). NULL для free events.",
     )
     currency = models.CharField(max_length=3, default="RUB")
@@ -212,7 +223,9 @@ class EXDate(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     series = models.ForeignKey(
-        "events.EventSeries", on_delete=models.CASCADE, related_name="exdates",
+        "events.EventSeries",
+        on_delete=models.CASCADE,
+        related_name="exdates",
     )
     excluded_date = models.DateTimeField()
     reason = models.CharField(max_length=128, blank=True, default="")
@@ -245,13 +258,17 @@ class RecurrenceOverride(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     series = models.ForeignKey(
-        "events.EventSeries", on_delete=models.CASCADE, related_name="overrides",
+        "events.EventSeries",
+        on_delete=models.CASCADE,
+        related_name="overrides",
     )
     recurrence_id = models.DateTimeField(
         help_text="Matching key — оригинальный DTSTART overrided instance.",
     )
     range_kind = models.CharField(
-        max_length=16, choices=OverrideRange.choices, default=OverrideRange.THIS_ONLY,
+        max_length=16,
+        choices=OverrideRange.choices,
+        default=OverrideRange.THIS_ONLY,
     )
     override_fields = models.JSONField(
         default=dict,
@@ -277,7 +294,9 @@ class EventCoverImage(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     event = models.OneToOneField(
-        "events.Event", on_delete=models.CASCADE, related_name="cover_image",
+        "events.Event",
+        on_delete=models.CASCADE,
+        related_name="cover_image",
     )
     storage_key = models.CharField(
         max_length=512,
@@ -286,7 +305,8 @@ class EventCoverImage(models.Model):
     width = models.PositiveIntegerField()
     height = models.PositiveIntegerField()
     alt_text = models.JSONField(
-        default=dict, blank=True,
+        default=dict,
+        blank=True,
         help_text='i18n: {"ru": "...", "en": "..."} for accessibility.',
     )
     created_at = models.DateTimeField(auto_now_add=True)
