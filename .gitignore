@@ -124,3 +124,6 @@ coverage/
 # === Local-only experiments ===
 playground/
 sandbox/
+/.venv
+backend/dev.sqlite3
+backend/.import_linter_cache/
