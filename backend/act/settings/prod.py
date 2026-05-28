@@ -49,11 +49,16 @@ if _missing:
 DATABASES = {alias: _parse_db_url(url) for alias, url in _required_db_urls.items()}
 
 # ---------------------------------------------------------------------------
-# PII encryption — fail-fast if key not set.
+# PII encryption — fail-fast if keys not set (ADR-014 revised).
 # ---------------------------------------------------------------------------
 if not os.environ.get("PII_HMAC_SECRET"):
     raise RuntimeError(
         "PII_HMAC_SECRET must be set in production (see .env.example: secrets.token_urlsafe(64))."
+    )
+if not (os.environ.get("PII_ENCRYPTION_KEY") or os.environ.get("PII_ENCRYPTION_KEYRING")):
+    raise RuntimeError(
+        "PII_ENCRYPTION_KEYRING (rotation) or PII_ENCRYPTION_KEY (single) must be set "
+        "in production. Load from Yandex Lockbox (see apps/core/crypto/keys.py)."
     )
 if not os.environ.get("YANDEX_LOCKBOX_KEY_ID"):
     # Warning, не error — на Phase 1.1+ Lockbox ещё не готов.

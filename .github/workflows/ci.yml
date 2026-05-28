@@ -70,6 +70,8 @@ jobs:
       DATABASE_URL_ADMIN: postgres://act_app:act_app_pass@localhost:5432/act_ci
       DATABASE_URL_DIRECT: postgres://act_app:act_app_pass@localhost:5432/act_ci
       PII_HMAC_SECRET: ci-only-pii-hmac-secret-not-for-production
+      # CI Fernet key — test-only; не сматчит prod ключи.
+      PII_ENCRYPTION_KEY: 9_QrGm0_FaTSwbKQ_PXowzL6dHpQzwLwBgGwc6PiL2A=
 
     steps:
       - name: Checkout
@@ -153,7 +155,7 @@ jobs:
           DJANGO_SETTINGS_MODULE: act.settings.test
           # PG-aware override (см. backend/act/settings/test.py).
           DATABASE_URL_TEST: postgres://act_app:act_app_pass@localhost:5432/act_ci
-        run: uv run python -m pytest tests/ -v --no-cov
+        run: uv run python -m pytest tests/ apps/ -v --no-cov
 
   # Frontend job появится в Phase 1.5 (Next.js skeleton).
   # frontend:

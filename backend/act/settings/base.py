@@ -218,13 +218,24 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 # ---------------------------------------------------------------------------
-# PII Encryption — django-cryptography + Yandex Lockbox в prod (ADR-014).
-# Dev: ephemeral key из env; production обязан валидировать наличие ключа.
+# PII Encryption — PyCA cryptography + custom EncryptedField in apps.core.crypto
+# (ADR-014 revised 2026-05-28 — replaces stale django-cryptography-django5).
+# Master Fernet key из Yandex Lockbox в prod; ephemeral env key в dev.
 # ---------------------------------------------------------------------------
+# HMAC для exact-match lookup по encrypted полям (e.g. find_user_by_phone).
 PII_HMAC_SECRET = os.environ.get(
     "PII_HMAC_SECRET",
     "dev-only-replace-via-env-secrets.token_urlsafe(64)-not-for-production",
 )
+
+# Fernet encryption key (single key — dev/test) OR keyring (production rotation).
+# Production: загружается из Yandex Lockbox через apps/core/lockbox.py (W1 sprint).
+# Dev: generate через `python -c "from apps.core.crypto import generate_key; print(generate_key())"`.
+PII_ENCRYPTION_KEY = os.environ.get("PII_ENCRYPTION_KEY", "")
+# Comma-separated list of base64 Fernet keys, newest first (MultiFernet rotation).
+# Override PII_ENCRYPTION_KEY когда задан.
+PII_ENCRYPTION_KEYRING = os.environ.get("PII_ENCRYPTION_KEYRING", "")
+
 YANDEX_LOCKBOX_KEY_ID = os.environ.get("YANDEX_LOCKBOX_KEY_ID", "")
 
 # ---------------------------------------------------------------------------

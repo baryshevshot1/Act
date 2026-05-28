@@ -6,6 +6,30 @@
 
 ## [Unreleased]
 
+### Changed (ADR-014 revised 2026-05-28 — PII encryption replacement)
+
+Replacement устаревшего `django-cryptography-django5` (last release 2024-06; classifiers только Django :: 5.0 — НЕ support Django 5.2 LTS) на PyCA `cryptography` + custom `EncryptedField`. Источник decision: `docs/research/phase-1-prep-findings-2026-05-28.md` R6 + `docs/decisions/adr-014-cryptography-replacement-memo.md` (founder approved Q1-Q5 = defaults 2026-05-28).
+
+- **`backend/apps/core/crypto/`** — новый module:
+    - `fields.py` (~80 LOC): `EncryptedField(models.TextField)` — transparent Fernet encryption через PyCA. Empty/None passthrough для compat. Migration window: декрипт `InvalidToken` возвращает raw value (для swap TextField → EncryptedField без backfill в Phase 1.4 → Phase 1.4.bis).
+    - `keys.py`: `get_keyring()` lazy-loads `MultiFernet` из `PII_ENCRYPTION_KEYRING` (production rotation) или `PII_ENCRYPTION_KEY` (single, dev/test). Fail-fast ImproperlyConfigured если ничего не задано. `generate_key()` CLI helper.
+    - `tests/test_crypto.py`: 7 smoke tests (round-trip, empty passthrough, IV randomness, MultiFernet rotation invariant, fail-fast missing config, to_python Fernet detection).
+- **`backend/pyproject.toml`**: `+cryptography>=43.0` (explicit; уже был transitive dep); `-django-cryptography-django5>=2.0`.
+- **Field swap** TextField → EncryptedField:
+    - `apps/identity_auth/models.py`: `User.primary_email_encrypted`, `User.phone_e164_encrypted`, `OAuthIdentity.provider_uid_encrypted`.
+    - `apps/rsvp/models.py`: `GuestRSVP.contact_value_encrypted`.
+- **Settings**:
+    - `act/settings/base.py`: `PII_ENCRYPTION_KEY` + `PII_ENCRYPTION_KEYRING` env vars (новые); комментарий о Yandex Lockbox loader (W1 sprint).
+    - `act/settings/dev.py` + `test.py`: hard-coded dev Fernet key (deterministic round-trip).
+    - `act/settings/prod.py`: fail-fast если ни KEY ни KEYRING не заданы.
+    - `.github/workflows/ci.yml`: `PII_ENCRYPTION_KEY` env для CI.
+- **ADR-014** в `docs/ARCHITECTURE.md`: статус Revised 2026-05-28; обновлены Alternatives table (добавлен Lockbox direct + envelope), Decision, code samples (apps.core.crypto.EncryptedField), Consequences, Triggers пересмотра (добавлен envelope migration path).
+- **CLAUDE.md** root: «Encryption: django-cryptography» → «PyCA cryptography + apps.core.crypto.EncryptedField»; NN #7 PII шифрование updated.
+- **Per-context CLAUDE.md**: `rsvp`, `contacts_sharing` — обновлены references.
+- **`.env.example`**: добавлены `PII_ENCRYPTION_KEY` + `PII_ENCRYPTION_KEYRING` с инструкцией generate.
+
+Migration cost: **zero production data** (4 TextField placeholders, реальное шифрование — W1 scope). После Phase 1.4.bis миграции — field type EncryptedField from start, без expand-contract.
+
 ### Added (Phase 1.4 — Django skeleton)
 
 Первая итерация **реального кода** в репозитории. Skeleton с 3 BC (identity_auth / events / rsvp) + apps.core (RLS middleware, CSP middleware, outbox stub).

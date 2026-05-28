@@ -2402,57 +2402,65 @@ acknowledged_rate(channel) = COUNT(state = 'acknowledged' WHERE channel = X)
 
 ### ADR-014 — Field-level encryption for PII
 
-- **Status:** Accepted (2026-05-24).
+- **Status:** Accepted (2026-05-24); **Revised 2026-05-28** — replacement пакета `django-cryptography-django5` (stale, last 2024-06, classifiers Django 5.0 only — не support Django 5.2 LTS) на PyCA `cryptography` + custom `EncryptedField` в `apps.core.crypto`. См. `docs/research/phase-1-prep-findings-2026-05-28.md` R6 + `docs/decisions/adr-014-cryptography-replacement-memo.md`.
 
 **Context.** Поля `contacts_sharing_channel.channel_value` (телефон, email, Telegram username), `identity_auth_user.phone_e164`, `verification_user_verification.evidence_ref`, `notifications_delivery.delivery_metadata` (содержит адреса) — это PII по 152-ФЗ ст. 3 п. 1. Encryption-at-rest на disk-level обеспечивает Yandex Managed PG, но это не защищает от: (a) compromise Yandex admin / DBA access; (b) дампов БД, утекающих за пределы encrypted volume (backup misconfiguration); (c) разработческого доступа к prod-replica для debug. Нужно field-level encryption — ключ не должен покидать application boundary.
 
 Альтернативы сравнены:
 
-|Подход                                                      |Pros                                                             |Cons                                                                                                                                                                                                                                                      |
-|------------------------------------------------------------|-----------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|**pgcrypto symmetric (`pgp_sym_encrypt`)**                  |Прозрачно для Django; ключ в env                                 |Ключ передаётся в БД в plain (PostgreSQL docs F.26: «pgcrypto functions run inside the database server — all the data and passwords move between pgcrypto and client applications in clear text»). Yandex admin / pg_stat_activity видят ключ. Отвергнуто.|
-|**`django-cryptography` (Fernet AES-128-CBC + HMAC-SHA256)**|App-level; ключ не покидает app; transparent encryption через ORM|Нет SQL-level search/index по encrypted полям; для exact-match нужен HMAC-индекс.                                                                                                                                                                         |
-|**HashiCorp Vault / SOPS file-based**                       |Профессиональный KMS                                             |Добавляет компонент вне frozen-стека; нарушает ADR-006 (single source).                                                                                                                                                                                   |
+|Подход                                                                                 |Pros                                                                  |Cons                                                                                                                                                                                                                                                      |
+|---------------------------------------------------------------------------------------|----------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|**pgcrypto symmetric (`pgp_sym_encrypt`)**                                             |Прозрачно для Django; ключ в env                                      |Ключ передаётся в БД в plain (PostgreSQL docs F.26: «pgcrypto functions run inside the database server — all the data and passwords move between pgcrypto and client applications in clear text»). Yandex admin / pg_stat_activity видят ключ. Отвергнуто.|
+|**`django-cryptography-django5` (Fernet)**                                             |Drop-in field type                                                    |Stale solo-maintainer fork (last release 2024-06; не support Django 5.1+/5.2 LTS). Отвергнуто R6.                                                                                                                                                          |
+|**PyCA `cryptography` + custom `EncryptedField` (Fernet via MultiFernet)** ← **выбран**|App-level; ключ не покидает app; transparent encryption через ORM; PyCA — formal org (Python Cryptographic Authority), monthly releases; Django-version-agnostic; builtin `MultiFernet.rotate()` для ротации|Нет SQL-level search/index по encrypted полям; для exact-match нужен HMAC-индекс; ~80 LOC custom field.                                                                                                                                                  |
+|**HashiCorp Vault / SOPS file-based**                                                  |Профессиональный KMS                                                  |Добавляет компонент вне frozen-стека; нарушает ADR-006 (single source).                                                                                                                                                                                   |
+|**Yandex Lockbox direct API (per-call encrypt/decrypt)**                               |Ключ никогда не в process memory                                      |~100ms latency per call × N полей × M requests = perf убийство для discovery feed.                                                                                                                                                                        |
+|**Envelope encryption (DEK + KEK)**                                                    |Industry-standard (AWS KMS pattern); rotate KEK без data backfill     |~100 LOC custom; overkill для MVP scale (<1M rows). Зарезервировано как trigger пересмотра.                                                                                                                                                              |
 
-**Decision.** Application-level encryption через `django-cryptography-django5` (fork с поддержкой Django 5.x; см. PyPI) с master-key в **Yandex Lockbox** (Yandex managed KMS, RU jurisdiction — соответствует ст. 18 152-ФЗ). Ключ ротируется ежегодно; старые ключи остаются в keyring для расшифровки исторических данных.
+**Decision (revised 2026-05-28).** Application-level encryption через **PyCA `cryptography` library + custom `EncryptedField` в `apps.core.crypto`** (~80 LOC). Master Fernet key (AES-128-CBC + HMAC-SHA256) из **Yandex Lockbox** в prod; `PII_ENCRYPTION_KEY` env var в dev/test. Rotation через `MultiFernet` keyring (newest-first) — ежегодная ротация без full backfill: старые tokens остаются readable.
 
 Использование в коде:
 
 ```python
-# apps/contacts_sharing/models.py
-from django_cryptography.fields import encrypt
+# apps/identity_auth/models.py (актуально на 2026-05-28)
+from apps.core.crypto import EncryptedField
 
-class UserContactChannel(models.Model):
-    channel_value = encrypt(models.TextField())
-    channel_value_hash = models.CharField(max_length=64, db_index=True)
-    # HMAC-SHA256(secret, channel_value) — для exact-match lookup
-    # (UNIQUE constraint на (user_id, channel_type, channel_value_hash))
+class User(models.Model):
+    primary_email_encrypted = EncryptedField(blank=True, default="")
+    primary_email_hash = models.CharField(max_length=64, db_index=True, unique=True)
+    # HMAC-SHA256(PII_HMAC_SECRET, lowercase(email)) — для exact-match lookup
 ```
 
-Поиск по encrypted полю (например, find user by phone для merge guest RSVP):
+Поиск по encrypted полю (find user by phone для merge guest RSVP):
 
 ```python
-# apps/contacts_sharing/services.py
-def find_user_by_phone(*, phone_e164: str) -> UserDTO | None:
+# apps/identity_auth/services.py
+def find_user_by_phone(*, phone_e164: str) -> UserContract | None:
     phone_hash = hmac.new(
         settings.PII_HMAC_SECRET.encode(),
         phone_e164.encode(),
         hashlib.sha256,
     ).hexdigest()
-    channel = UserContactChannel.objects.filter(
-        channel_type='phone',
-        channel_value_hash=phone_hash,
-    ).first()
-    return UserDTO.from_orm(channel.user) if channel else None
+    user = User.objects.filter(phone_e164_hash=phone_hash).first()
+    return UserContract(...) if user else None
 ```
 
-**Alternatives considered:** см. таблицу выше. pgcrypto отвергнут (key in clear); Vault — лишний компонент. Для соло-ИП баланс простота / безопасность достигается django-cryptography + Yandex Lockbox.
+Key rotation (Procrastinate periodic task в W1+):
+
+```python
+# apps/core/crypto/keys.py — MultiFernet keyring
+# Production: PII_ENCRYPTION_KEYRING="<new_key>,<old_key>" (newest first)
+# Rotation: prepend new key → новые writes используют new_key; reads пробуют по очереди.
+# После 12 месяцев — backfill task переписывает старые tokens, old_key удаляется.
+```
+
+**Alternatives considered:** см. таблицу выше. pgcrypto отвергнут (key in clear); Vault — лишний компонент; `django-cryptography-django5` отвергнут (stale, R6); Lockbox direct API — perf; envelope encryption — overkill phase 1.
 
 **Consequences:**
 
-- Положительные: PII защищены от Yandex admin / DBA с прямым доступом к dump’ам и snapshots; ключ ротируется централизованно; HMAC-индекс обеспечивает exact-match поиск.
-- Отрицательные: невозможен `ILIKE` / partial match по encrypted полям (только exact через HMAC); migration существующих данных при ротации требует backfill task; +5–10ms latency per encrypted field operation.
-- **Триггеры пересмотра:** (a) Yandex прекращает Lockbox или поднимает цену > 30% / квартал → migration на SOPS-based encrypted secrets в env; (b) появление quantum-safe требования — переход с AES-128 на PQC algorithm; (c) >5 GET endpoints начинают требовать ILIKE по encrypted полям — пересмотреть field-level encryption на column-level (например, Tink searchable encryption).
+- Положительные: PII защищены от Yandex admin / DBA с прямым доступом к dump’ам и snapshots; ключ ротируется централизованно через `MultiFernet`; HMAC-индекс обеспечивает exact-match поиск; нет зависимости от solo-maintainer fork; PyCA `cryptography` уже transitive dep — minimal install footprint; full тест-suite в `apps/core/tests/test_crypto.py` (round-trip + rotation invariant).
+- Отрицательные: невозможен `ILIKE` / partial match по encrypted полям (только exact через HMAC); migration существующих данных при ротации требует backfill task; +5–10ms latency per encrypted field operation; ~80 LOC custom field надо maintain (но Fernet API стабилен с 2012).
+- **Триггеры пересмотра:** (a) Yandex прекращает Lockbox или поднимает цену > 30% / квартал → migration на SOPS-based encrypted secrets в env; (b) появление quantum-safe требования — переход с AES-128 на PQC algorithm (ChaCha20-Poly1305 как промежуточный шаг); (c) >5 GET endpoints начинают требовать ILIKE по encrypted полям — пересмотреть field-level encryption на column-level (например, Tink searchable encryption); (d) scale > 10M rows → миграция на envelope encryption (DEK + KEK), backward-compatible через `MultiFernet`.
 
 ### ADR-015 — OG image generation strategy
 

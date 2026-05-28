@@ -25,3 +25,9 @@ if not DATABASES:
     }
 
 INTERNAL_IPS = ["127.0.0.1"]
+
+# Dev-only Fernet key — deterministic across runs.
+# Production обязан задавать PII_ENCRYPTION_KEYRING из Yandex Lockbox (см. prod.py).
+# Сгенерирован один раз через `Fernet.generate_key()`; для local dev/test only.
+if not PII_ENCRYPTION_KEY and not PII_ENCRYPTION_KEYRING:
+    PII_ENCRYPTION_KEY = "9_QrGm0_FaTSwbKQ_PXowzL6dHpQzwLwBgGwc6PiL2A="

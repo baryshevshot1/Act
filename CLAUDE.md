@@ -57,7 +57,7 @@ act/
 - **File storage:** Yandex Object Storage (S3-compat)
 - **CDN:** Yandex CDN. **NEVER** assume Cloudflare/AWS edges работают в РФ.
 - **Auth:** django-allauth (Telegram OIDC primary, magic-link fallback) + django-otp + django-otp-webauthn (passkeys). **NEVER** propose Clerk / Auth0 / Supabase Auth.
-- **Encryption:** django-cryptography + Yandex Lockbox (KMS) для PII полей. **NEVER** использовать pgcrypto для application encryption — ключ в plain в БД.
+- **Encryption:** PyCA `cryptography` + custom `apps.core.crypto.EncryptedField` + Yandex Lockbox (KMS) для PII полей (ADR-014 revised 2026-05-28; ранее `django-cryptography-django5` — отвергнут R6 как stale fork). **NEVER** использовать pgcrypto для application encryption — ключ в plain в БД.
 - **Hosting:** Yandex Cloud Compute + Coolify. **NEVER** assume Vercel / Heroku / AWS managed.
 - **CI/CD:** GitHub Actions + self-hosted runner на Yandex Compute. Plan B — Forgejo Actions при блокировке.
 - **Email ESP:** UniSender или SendPulse (RU). **Never** Postmark/SendGrid as primary (трансграничная передача ПДн).
@@ -135,7 +135,7 @@ cd frontend && pnpm dev
 1. **Хостинг.** No Vercel managed. No Heroku. No AWS edges как primary. Yandex Cloud + Coolify.
 1. **iOS.** Through Phase 5 — только PWA + Telegram Mini App. App Store distribution требует зарубежного юр.лица и отложен до Phase 6+.
 1. **Magic links / OAuth.** Не логинить на GET — link-preview боты (Telegram WebpageBot, Microsoft SafeLinks) сожгут токен. Логин на POST после явного клика. (источники industry pattern: supertokens.com/blog/magiclinks, etodd.io/2026/03/22/magic-link-pitfalls)
-1. **PII шифрование.** Phone / email / verification documents — encrypted at rest. Audit log всех чтений PII-полей обязателен. (основание: ADR-014 — django-cryptography + Yandex Lockbox; `audit_log_pii_access` — Wave 3 planned)
+1. **PII шифрование.** Phone / email / verification documents — encrypted at rest через `apps.core.crypto.EncryptedField` (PyCA Fernet + MultiFernet keyring). Audit log всех чтений PII-полей обязателен. (основание: ADR-014 revised — `cryptography` + Yandex Lockbox; `audit_log_pii_access` — Wave 3 planned)
 1. **Real-time не делаем.** На MVP — polling 30s на event-страницах. WebSocket / Centrifugo — отложено до Phase 5+ при наличии конкретного use case.
 1. **Трансграничная передача (ст. 12 152-ФЗ).** Telegram Bot API / Telegram Gateway = ТППД (получатель Telegram FZ-LLC, ОАЭ; серверы NL/SG). Все формы signup ДОЛЖНЫ иметь отдельный opt-in чекбокс на использование Telegram-каналов; `ConsentRecord(purpose='cross_border_transfer')` обязательна. Без согласия — fallback на SMS.ru / Web Push / email через UniSender. **Никогда** не вызывать Telegram API без проверки consent. См. ADR-013.
 1. **РКН-уведомления (ст. 22 + ст. 12 152-ФЗ).** ДВА разных уведомления, не путать. Подаются ДО первой production-публикации сайта (Pre-pilot Compliance baseline). Штраф за неподачу по ст. 22 — 100 000–300 000 ₽ для ИП (ч. 10 ст. 13.11 КоАП с 30.05.2025), 50%-скидка не действует. См. ADR-012.
