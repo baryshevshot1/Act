@@ -23,7 +23,7 @@ Identity & Auth — **root BC**. Owns: `User`, `Session`, `MagicLinkToken`, `OAu
 
 ## 7 приоритетов аутентификации (PDF `Leto_project_p1.pdf` раздел 3.5)
 
-1. **Telegram OIDC primary** — `django-allauth` + custom adapter (~100 строк). Redirect flow. Требует ст. 12 consent (см. NON-NEGOTIABLE #9).
+1. **Telegram Login Widget primary** — нативный provider `allauth.socialaccount.providers.telegram` (без кастомного adapter — research R2 confirmed). HMAC-SHA256 callback (не OAuth/OIDC). Требует ст. 12 consent (см. NON-NEGOTIABLE #9). Mini App `initData` flow — отложен до Phase 5+.
 2. **VK ID secondary** — `id.vk.com/about/business`, ИП-доступно. access_token 60 мин, refresh 180 дней.
 3. **Yandex ID secondary** — `oauth.yandex.ru`, ИП через email. Виджет «Мгновенный вход».
 4. **Apple Sign-In** — только EN-сегмент. Требует зарубежного юр.лица. `[?]` deferred до Phase 6+.

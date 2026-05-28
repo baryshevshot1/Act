@@ -34,7 +34,12 @@ def signup_with_telegram_oidc(
     request_meta: RequestMeta,
     consent_cross_border_transfer: bool,
 ) -> UserContract:
-    """Создаёт User через Telegram OIDC.
+    """Создаёт User через Telegram Login Widget callback.
+
+    NOTE: имя функции содержит «oidc» по историческим причинам — Telegram
+    использует HMAC-SHA256, а не OAuth/OIDC. Реальная обработка делегируется
+    нативному `allauth.socialaccount.providers.telegram` (research R2). W1
+    sprint может переименовать функцию.
 
     PRE-condition: `consent_cross_border_transfer=True` — без него Telegram API
     нельзя вызывать (NN #9 + ADR-013). Caller должен показать explicit-checkbox
