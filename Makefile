@@ -2,7 +2,7 @@
 # Источник: CLAUDE.md строки 73-94 (common commands).
 # NON-NEGOTIABLE #11: миграции через прямой PG (миную PgBouncer).
 
-.PHONY: help up down logs migrate migrate-direct test test-rls test-outbox lint fmt rls-check shell worker clean
+.PHONY: help up down logs migrate migrate-direct test test-rls test-outbox lint fmt rls-check shell worker clean ci-check
 
 help:
 	@echo "Act — common dev tasks"
@@ -14,6 +14,7 @@ help:
 	@echo "  make test-rls        — pytest -m rls"
 	@echo "  make test-outbox     — pytest -m outbox"
 	@echo "  make lint            — ruff + mypy + import-linter"
+	@echo "  make ci-check        — те же проверки что GitHub Actions CI (для локальной верификации перед push)"
 	@echo "  make fmt             — ruff format + ruff check --fix"
 	@echo "  make rls-check       — verify FORCE+RESTRICTIVE default_deny on RLS tables"
 	@echo "  make shell           — Django shell"
@@ -47,6 +48,30 @@ test-outbox:
 
 lint:
 	cd backend && ruff check . && mypy . && lint-imports
+
+# Локальное эхо .github/workflows/ci.yml — позволяет verify перед `git push`.
+# Не валидирует frontend (это будет в Phase 1.5).
+ci-check:
+	@echo "=== 1. Django check (dev) ==="
+	cd backend && DJANGO_SETTINGS_MODULE=act.settings.dev python manage.py check
+	@echo ""
+	@echo "=== 2. Django check --deploy (prod, smoke) ==="
+	cd backend && ALLOWED_HOSTS=ci.act.app \
+		DATABASE_URL=postgres://act_app:ci@localhost:5432/d \
+		DATABASE_URL_ADMIN=postgres://act_admin:ci@localhost:5432/d \
+		DATABASE_URL_DIRECT=postgres://act_app:ci@localhost:5432/d \
+		PII_HMAC_SECRET=ci-only-replace-via-secrets \
+		SECRET_KEY=ci-only-replace-via-secrets-very-long-string-for-django-pass \
+		DJANGO_SETTINGS_MODULE=act.settings.prod \
+		python manage.py check --deploy
+	@echo ""
+	@echo "=== 3. import-linter (18 contracts) ==="
+	cd backend && DJANGO_SETTINGS_MODULE=act.settings.dev lint-imports | grep "Contracts:"
+	@echo ""
+	@echo "=== 4. pytest --collect-only ==="
+	cd backend && DJANGO_SETTINGS_MODULE=act.settings.test pytest --collect-only --no-cov -q || [ $$? -eq 5 ]
+	@echo ""
+	@echo "✓ All CI checks PASS"
 
 fmt:
 	cd backend && ruff format . && ruff check . --fix

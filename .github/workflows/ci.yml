@@ -1,0 +1,109 @@
+# Act — Continuous Integration
+#
+# Triggered on push to main + every PR. Runs backend verification suite
+# from Phase 1.4 promt verification commands (now enforced by CI):
+#
+#   1. `manage.py check`               — Django system checks
+#   2. `manage.py check --deploy`      — prod settings hardening
+#   3. `lint-imports`                  — 18 modular monolith contracts
+#   4. `pytest --collect-only`         — import errors in test discovery
+#
+# Не запускает миграции / runserver — для этого нужен живой PG, не сейчас.
+# Frontend job появится в Phase 1.5 (Next.js skeleton).
+#
+# [F: CLAUDE.md «Common commands»; docs/iterations/iteration-5.5-roadmap.md step #17]
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Отменять running CI на тех же PR при новых push.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DJANGO_SETTINGS_MODULE: act.settings.dev
+      # SECRET_KEY для check --deploy не пуст (warnings, не errors).
+      SECRET_KEY: ci-only-not-for-production-replace-via-secrets
+      # Минимум env для prod-settings smoke; не для runtime.
+      ALLOWED_HOSTS: ci.act.app
+      DATABASE_URL: postgres://act_app:ci_pass@localhost:5432/act_ci
+      DATABASE_URL_ADMIN: postgres://act_admin:ci_pass@localhost:5432/act_ci
+      DATABASE_URL_DIRECT: postgres://act_app:ci_pass@localhost:5432/act_ci
+      PII_HMAC_SECRET: ci-only-pii-hmac-secret-not-for-production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          # Кеш привязан к содержимому pyproject.toml — при изменении зависимостей
+          # инвалидируется автоматически.
+          cache-dependency-glob: "backend/pyproject.toml"
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Create venv + install dependencies
+        run: |
+          uv venv --python 3.12
+          # `--requirements pyproject.toml` ставит только deps из [project].dependencies
+          # + [tool.uv].dev-dependencies без attempt-инg построить act-package
+          # (act/ + apps/ — flat-layout, setuptools auto-discovery не работает).
+          uv pip install --requirements pyproject.toml
+          # dev-dependencies для pytest/lint
+          uv pip install pytest pytest-django pytest-cov factory-boy ruff mypy
+
+      - name: Django check (dev settings)
+        run: uv run python manage.py check
+
+      - name: Django check --deploy (prod settings)
+        env:
+          DJANGO_SETTINGS_MODULE: act.settings.prod
+        run: |
+          # prod check ловит missing env vars + insecure-by-default configs.
+          # Stderr может содержать WARN про YANDEX_LOCKBOX_KEY_ID (это ожидаемо —
+          # Lockbox setup в Phase 1.1, не сейчас). Errors — fail.
+          uv run python manage.py check --deploy 2>&1
+
+      - name: import-linter (18 modular monolith contracts)
+        run: uv run lint-imports
+
+      - name: pytest --collect-only (import errors only)
+        env:
+          DJANGO_SETTINGS_MODULE: act.settings.test
+        run: |
+          # Skeleton не имеет тестов — pytest exits 5 ("no tests collected"),
+          # это OK. Exit 1-4 = реальная ошибка collection (import / syntax).
+          # Exit 5 mapped to 0; всё остальное propagate.
+          set +e
+          uv run python -m pytest --collect-only --no-cov -q
+          STATUS=$?
+          if [ "$STATUS" -eq 0 ] || [ "$STATUS" -eq 5 ]; then
+            exit 0
+          fi
+          exit $STATUS
+
+  # Frontend job appears в Phase 1.5 (Next.js skeleton).
+  # frontend:
+  #   name: Frontend checks
+  #   runs-on: ubuntu-latest
+  #   ...
