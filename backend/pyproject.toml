@@ -27,8 +27,11 @@ dependencies = [
     "import-linter>=2.1",                     # Python-эквивалент Shopify Packwerk
 ]
 
-[tool.uv]
-dev-dependencies = [
+# PEP 735 dependency groups (uv >= 0.5 рекомендует) — replaces deprecated
+# [tool.uv].dev-dependencies (warning в CI).
+# Установка: `uv pip install --group dev` либо явный список в CI step.
+[dependency-groups]
+dev = [
     # Test stack [F: CLAUDE.md строка 69]
     "pytest>=8.3",
     "pytest-django>=4.9",
