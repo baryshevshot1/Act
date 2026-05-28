@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Host-first платформа для поиска компании на совместные мероприятия (modular monolith)."
 requires-python = ">=3.12"
 license = { text = "Proprietary" }
-authors = [{ name = "Andrey", email = "[? founder_email — fill before first commit]" }]
+authors = [{ name = "Andrey" }]
 
 dependencies = [
     # Backend core [F: CLAUDE.md строки 49, 51]
