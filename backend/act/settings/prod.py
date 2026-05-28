@@ -11,13 +11,14 @@
 Coolify pre-deploy hook:
     PG_BOUNCER_HOST="" python manage.py migrate --database=migrations --noinput
 """
+
 from __future__ import annotations
 
 import os
 import sys
 
-from .base import *  # noqa: F401,F403
-from .base import DATABASES, _parse_db_url
+from .base import *
+from .base import _parse_db_url
 
 DEBUG = False
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
@@ -26,7 +27,7 @@ if not ALLOWED_HOSTS or ALLOWED_HOSTS == [""]:
 
 # HTTPS-only — terminate на Coolify reverse proxy + HSTS.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-SECURE_HSTS_SECONDS = 31_536_000             # 1 год
+SECURE_HSTS_SECONDS = 31_536_000  # 1 год
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_SSL_REDIRECT = True
@@ -42,8 +43,7 @@ _required_db_urls = {
 _missing = [k for k, v in _required_db_urls.items() if not v]
 if _missing:
     raise RuntimeError(
-        f"Missing required DATABASE_URL env vars for prod: {_missing}. "
-        "See .env.example."
+        f"Missing required DATABASE_URL env vars for prod: {_missing}. See .env.example."
     )
 
 DATABASES = {alias: _parse_db_url(url) for alias, url in _required_db_urls.items()}
@@ -53,13 +53,14 @@ DATABASES = {alias: _parse_db_url(url) for alias, url in _required_db_urls.items
 # ---------------------------------------------------------------------------
 if not os.environ.get("PII_HMAC_SECRET"):
     raise RuntimeError(
-        "PII_HMAC_SECRET must be set in production "
-        "(see .env.example: secrets.token_urlsafe(64))."
+        "PII_HMAC_SECRET must be set in production (see .env.example: secrets.token_urlsafe(64))."
     )
 if not os.environ.get("YANDEX_LOCKBOX_KEY_ID"):
     # Warning, не error — на Phase 1.1+ Lockbox ещё не готов.
-    print("WARN: YANDEX_LOCKBOX_KEY_ID не задан — PII encryption fallback на local key.",
-          file=sys.stderr)
+    print(
+        "WARN: YANDEX_LOCKBOX_KEY_ID не задан — PII encryption fallback на local key.",
+        file=sys.stderr,
+    )
 
 # ---------------------------------------------------------------------------
 # Sentry init (если DSN задан).
@@ -73,6 +74,6 @@ if SENTRY_DSN:
         dsn=SENTRY_DSN,
         integrations=[DjangoIntegration()],
         traces_sample_rate=0.1,
-        send_default_pii=False,        # NEVER send PII (NON-NEGOTIABLE #7)
+        send_default_pii=False,  # NEVER send PII (NON-NEGOTIABLE #7)
         environment="production",
     )

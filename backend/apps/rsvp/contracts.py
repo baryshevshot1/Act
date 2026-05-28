@@ -2,15 +2,16 @@
 
 [F: backend/apps/rsvp/CLAUDE.md «Exposes»]
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 
-class RSVPStatusContract(str, Enum):
+class RSVPStatusContract(StrEnum):
     APPLIED = "applied"
     CONFIRMED = "confirmed"
     WAITLISTED = "waitlisted"
@@ -19,13 +20,13 @@ class RSVPStatusContract(str, Enum):
     NO_SHOW = "no_show"
 
 
-class GuestStatusContract(str, Enum):
+class GuestStatusContract(StrEnum):
     PENDING = "pending"
     GOING = "going"
     DECLINED = "declined"
 
 
-class ContactChannelContract(str, Enum):
+class ContactChannelContract(StrEnum):
     EMAIL = "email"
     TELEGRAM_HANDLE = "telegram_handle"
     PHONE = "phone"
@@ -52,7 +53,7 @@ class GuestRSVPDTO:
     id: UUID
     event_id: UUID
     contact_channel: ContactChannelContract
-    contact_value_masked: str        # e.g. "j***@example.com"
+    contact_value_masked: str  # e.g. "j***@example.com"
     display_name: str
     status: GuestStatusContract
     created_at: datetime

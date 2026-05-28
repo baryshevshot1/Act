@@ -7,6 +7,7 @@
 
 API routes (api/v1/...) appear в W1+ как app.urls в каждом BC.
 """
+
 from django.contrib import admin
 from django.urls import include, path
 

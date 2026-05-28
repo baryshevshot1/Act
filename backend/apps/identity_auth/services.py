@@ -8,6 +8,7 @@
 Phase 1.4 — только signatures + `raise NotImplementedError` для compile-time
 проверки правильности cross-context импортов через import-linter.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -30,9 +31,9 @@ def signup_with_telegram_oidc(
     *,
     telegram_id: str,
     locale: str,
-    request_meta: "RequestMeta",
+    request_meta: RequestMeta,
     consent_cross_border_transfer: bool,
-) -> "UserContract":
+) -> UserContract:
     """Создаёт User через Telegram OIDC.
 
     PRE-condition: `consent_cross_border_transfer=True` — без него Telegram API
@@ -53,8 +54,8 @@ def signup_with_telegram_oidc(
 def request_magic_link(
     *,
     email: str,
-    request_meta: "RequestMeta",
-) -> "MagicLinkContract":
+    request_meta: RequestMeta,
+) -> MagicLinkContract:
     """Генерирует MagicLinkToken, отправляет email через UniSender/SendPulse.
 
     Rate limit: 3/min/IP + 10/hour/email (см. ARCHITECTURE.md Rate Limiting).
@@ -66,8 +67,8 @@ def request_magic_link(
 def verify_magic_link(
     *,
     raw_token: str,
-    request_meta: "RequestMeta",
-) -> "UserContract":
+    request_meta: RequestMeta,
+) -> UserContract:
     """Verify magic-link и логинит пользователя.
 
     NON-NEGOTIABLE #6: вызывается ТОЛЬКО на POST после явного клика.
@@ -84,17 +85,17 @@ def verify_magic_link(
     raise NotImplementedError("W1 sprint — POST only (NN #6)")
 
 
-def find_user_by_email(*, email: str) -> "UserContract | None":
+def find_user_by_email(*, email: str) -> UserContract | None:
     """Exact-match lookup через HMAC hash; НЕ filter(email=)."""
     raise NotImplementedError("W1 sprint")
 
 
-def find_user_by_phone(*, phone_e164: str) -> "UserContract | None":
+def find_user_by_phone(*, phone_e164: str) -> UserContract | None:
     """Phone normalize до +E164 ДО HMAC — иначе hash не совпадёт."""
     raise NotImplementedError("W1 sprint")
 
 
-def find_user_by_telegram_id(*, telegram_id: str) -> "UserContract | None":
+def find_user_by_telegram_id(*, telegram_id: str) -> UserContract | None:
     """Telegram ID — публичный handle, plain lookup OK."""
     raise NotImplementedError("W1 sprint")
 
@@ -105,11 +106,11 @@ def find_user_by_telegram_id(*, telegram_id: str) -> "UserContract | None":
 def grant_consent(
     *,
     user_id: UUID,
-    purpose: "ConsentPurposeContract",
+    purpose: ConsentPurposeContract,
     consent_text_hash: str,
     ip_address: str,
     user_agent: str,
-) -> "ConsentContract":
+) -> ConsentContract:
     """Записать согласие.
 
     Отдельный документ согласия (NN #2). `consent_text_hash` фиксирует версию.
@@ -124,7 +125,7 @@ def grant_consent(
 def withdraw_consent(
     *,
     user_id: UUID,
-    purpose: "ConsentPurposeContract",
+    purpose: ConsentPurposeContract,
     ip_address: str,
 ) -> None:
     """Отзыв согласия (ст. 14 152-ФЗ — право на удаление).
@@ -138,7 +139,7 @@ def withdraw_consent(
     raise NotImplementedError("W1 sprint")
 
 
-def has_consent(*, user_id: UUID, purpose: "ConsentPurposeContract") -> bool:
+def has_consent(*, user_id: UUID, purpose: ConsentPurposeContract) -> bool:
     """Проверка активного согласия (granted_at is not null, withdrawn_at is null).
 
     ВАЖНО: вызывается ПЕРЕД любым cross-border data flow

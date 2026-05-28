@@ -9,6 +9,7 @@ service-роль. user-attributable данные в payload должны быт�
 PK — UUIDv7 (write-heavy таблица, time-ordered insert). На Phase 1.4 используем
 UUIDv4 placeholder; pg_uuidv7 extension придёт в Phase 1.4.bis (см. ADR-006).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -40,14 +41,17 @@ class OutboxEvent(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     published_at = models.DateTimeField(
-        null=True, blank=True,
+        null=True,
+        blank=True,
         help_text="NULL = pending; NOT NULL = доставлено всем subscribers.",
     )
     error_count = models.IntegerField(
-        default=0, validators=[MinValueValidator(0)],
+        default=0,
+        validators=[MinValueValidator(0)],
         help_text="При >= 10 — alert в Sentry, manual review (poison message).",
     )
-    last_error = models.TextField(null=True, blank=True)
+    # Не null=True: для TextField предпочитаем empty string (DJ001 + Django convention).
+    last_error = models.TextField(blank=True, default="")
 
     class Meta:
         db_table = "outbox_event"

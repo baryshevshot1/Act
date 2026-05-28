@@ -20,6 +20,7 @@
 
 Гарантия at-least-once: consumer ОБЯЗАН быть идемпотентен по `event.id`.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any

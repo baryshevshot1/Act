@@ -16,6 +16,7 @@ Anonymous users → NULL_UUID — RLS PERMISSIVE policies fail-match (default_de
 Pitfall: middleware ОБЯЗАН быть после AuthenticationMiddleware
 (нужен `request.user`). Порядок зафиксирован в `act.settings.base.MIDDLEWARE`.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -37,10 +38,10 @@ class RLSContextMiddleware:
 
     NULL_UUID = "00000000-0000-0000-0000-000000000000"
 
-    def __init__(self, get_response: Callable[["HttpRequest"], "HttpResponse"]) -> None:
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
         self.get_response = get_response
 
-    def __call__(self, request: "HttpRequest") -> "HttpResponse":
+    def __call__(self, request: HttpRequest) -> HttpResponse:
         if connection.vendor != "postgresql":
             return self.get_response(request)
 

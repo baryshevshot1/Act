@@ -7,6 +7,7 @@
 с BYPASSRLS) — RLS Operational Constraint #4. Routing — через decorator
 @using('admin') или middleware-based switcher в W9.
 """
+
 from django.contrib import admin
 
 from .models import (

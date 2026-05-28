@@ -2,6 +2,7 @@
 
 [F: docs/ARCHITECTURE.md «Hosting: Yandex Cloud Compute + Coolify»]
 """
+
 import os
 
 from django.core.wsgi import get_wsgi_application

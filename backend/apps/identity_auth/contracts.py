@@ -12,22 +12,23 @@ JSON-serializable через `asdict`).
 Допустимо: id, hash, status, telegram_id (публичный), locale, country_code.
 Запрещено: primary_email_encrypted, phone_e164_encrypted, password.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 
-class UserStatusContract(str, Enum):
+class UserStatusContract(StrEnum):
     PENDING = "pending"
     ACTIVE = "active"
     BANNED = "banned"
     DELETED = "deleted"
 
 
-class ConsentPurposeContract(str, Enum):
+class ConsentPurposeContract(StrEnum):
     CORE_PROCESSING = "core_processing"
     MARKETING = "marketing"
     CONTACT_SHARING = "contact_sharing"
@@ -42,7 +43,7 @@ class UserContract:
     """Public user representation — no PII, only identifiers."""
 
     id: UUID
-    primary_email_hash: str         # HMAC, не plain
+    primary_email_hash: str  # HMAC, не plain
     telegram_id: str | None
     locale: str
     country_code: str

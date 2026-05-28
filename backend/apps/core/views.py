@@ -3,6 +3,7 @@
 Phase 1.4: только healthz (liveness probe для Coolify / Yandex CLB).
 Никаких DB-проверок — heavy readiness probe — отдельный endpoint в W10.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -15,6 +16,6 @@ if TYPE_CHECKING:
 
 
 @require_GET
-def healthz(request: "HttpRequest") -> JsonResponse:
+def healthz(request: HttpRequest) -> JsonResponse:
     """Liveness probe — возвращает 200 если процесс запущен."""
     return JsonResponse({"status": "ok", "version": "0.1.0"})

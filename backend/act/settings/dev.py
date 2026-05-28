@@ -3,9 +3,10 @@
 Fallback на SQLite если DATABASE_URL не задан — позволяет `manage.py check`
 работать без живого PG. Реальный dev-flow требует `docker-compose up postgres`.
 """
+
 from __future__ import annotations
 
-from .base import *  # noqa: F401,F403
+from .base import *
 from .base import BASE_DIR, DATABASES
 
 DEBUG = True

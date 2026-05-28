@@ -12,6 +12,7 @@ W6 sprint реализует:
 
 Phase 1.4 — только signatures + invariant docstrings.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -31,7 +32,7 @@ def rsvp_signed_in(
     user_id: UUID,
     event_id: UUID,
     note: str | None = None,
-) -> "ParticipantDTO":
+) -> ParticipantDTO:
     """Create EventParticipant.
 
     Pre-conditions:
@@ -49,11 +50,11 @@ def rsvp_signed_in(
 def rsvp_as_guest(
     *,
     event_id: UUID,
-    contact_channel: "ContactChannelContract",
+    contact_channel: ContactChannelContract,
     contact_value: str,
     display_name: str,
-    request_meta: "RequestMeta",
-) -> "GuestRSVPDTO":
+    request_meta: RequestMeta,
+) -> GuestRSVPDTO:
     """Create GuestRSVP.
 
     Behavior:
@@ -74,7 +75,7 @@ def rsvp_as_guest(
 def merge_guest_on_signup(
     *,
     user_id: UUID,
-    contact_channel: "ContactChannelContract",
+    contact_channel: ContactChannelContract,
     contact_value: str,
 ) -> int:
     """Merge все pending GuestRSVP, совпадающие по (channel, value), в EventParticipant.
@@ -105,7 +106,9 @@ def merge_guest_on_signup(
 # ---------------------------------------------------------------------------
 # Organizer actions
 # ---------------------------------------------------------------------------
-def confirm_rsvp(*, event_id: UUID, organizer_user_id: UUID, participant_id: UUID) -> "ParticipantDTO":
+def confirm_rsvp(
+    *, event_id: UUID, organizer_user_id: UUID, participant_id: UUID
+) -> ParticipantDTO:
     """Organizer confirms an applied RSVP. Outbox: RSVPConfirmed."""
     raise NotImplementedError("W6 sprint")
 
@@ -132,7 +135,7 @@ def list_participants(
     *,
     event_id: UUID,
     requester_user_id: UUID,
-) -> list["ParticipantDTO"]:
+) -> list[ParticipantDTO]:
     """RLS обеспечивает visibility:
     - organizer видит всех (via participant_visibility policy)
     - participant видит себя + organizer-confirmed peers (зависит от Event settings)
