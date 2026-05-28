@@ -50,12 +50,21 @@ lint:
 	cd backend && ruff check . && mypy . && lint-imports
 
 # Локальное эхо .github/workflows/ci.yml — позволяет verify перед `git push`.
+# Без service container postgres — DATABASE_URL_TEST не задан → smoke tests
+# с PG-проверкой skip'ается (test_db_connection_is_postgres_in_ci). Для полного
+# PG-run: `docker compose up -d postgres` + DATABASE_URL_TEST=postgres://...`
 # Не валидирует frontend (это будет в Phase 1.5).
 ci-check:
-	@echo "=== 1. Django check (dev) ==="
+	@echo "=== 1. ruff check ==="
+	cd backend && ruff check .
+	@echo ""
+	@echo "=== 2. ruff format --check ==="
+	cd backend && ruff format --check .
+	@echo ""
+	@echo "=== 3. Django check (dev) ==="
 	cd backend && DJANGO_SETTINGS_MODULE=act.settings.dev python manage.py check
 	@echo ""
-	@echo "=== 2. Django check --deploy (prod, smoke) ==="
+	@echo "=== 4. Django check --deploy (prod, smoke) ==="
 	cd backend && ALLOWED_HOSTS=ci.act.app \
 		DATABASE_URL=postgres://act_app:ci@localhost:5432/d \
 		DATABASE_URL_ADMIN=postgres://act_admin:ci@localhost:5432/d \
@@ -65,11 +74,15 @@ ci-check:
 		DJANGO_SETTINGS_MODULE=act.settings.prod \
 		python manage.py check --deploy
 	@echo ""
-	@echo "=== 3. import-linter (18 contracts) ==="
+	@echo "=== 5. import-linter (18 contracts) ==="
 	cd backend && DJANGO_SETTINGS_MODULE=act.settings.dev lint-imports | grep "Contracts:"
 	@echo ""
-	@echo "=== 4. pytest --collect-only ==="
-	cd backend && DJANGO_SETTINGS_MODULE=act.settings.test pytest --collect-only --no-cov -q || [ $$? -eq 5 ]
+	@echo "=== 6. makemigrations --dry-run (Phase 1.4.bis territory) ==="
+	cd backend && DJANGO_SETTINGS_MODULE=act.settings.dev python manage.py \
+		makemigrations --dry-run core identity_auth events rsvp | tail -5
+	@echo ""
+	@echo "=== 7. pytest tests/ ==="
+	cd backend && DJANGO_SETTINGS_MODULE=act.settings.test pytest tests/ --no-cov -q
 	@echo ""
 	@echo "✓ All CI checks PASS"
 
